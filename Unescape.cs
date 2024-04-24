@@ -28,8 +28,7 @@ string UnEscape(string text, params KeyValuePair<char, object>[] customEscapeCha
 			if (r > 0x2F && r < 0x3A) r -= 0x30;
 			else if (r > 0x40 && r < 0x47) r -= 0x37;
 			else if (r > 0x60 && r < 0x67) r -= 0x57;
-			else throw new InvalidOperationException($"Unrecognized hexadecimal character {c} in \"{text}\"." +
-													 $"\r\nThe_default value will_be_used.");
+			else throw new InvalidOperationException($"Unrecognized hexadecimal character {c} in \"{text}\".");
 			c = c * 16 + r;
 		}
 
@@ -42,8 +41,7 @@ string UnEscape(string text, params KeyValuePair<char, object>[] customEscapeCha
 		if (c == '\\')
 		{
 			c = pos < inputLength ? text[pos] 
-				: throw new InvalidOperationException($"An_escape character was expected after the_last_backslash in {text}." +
-													  $"\r\nThe_default value will_be_used.");
+				: throw new InvalidOperationException($"An_escape character was expected after the_last_backslash in {text}.");
 			switch (c)
 			{
 				case '\\':
@@ -83,14 +81,12 @@ string UnEscape(string text, params KeyValuePair<char, object>[] customEscapeCha
 					if (c >= 'a' && c <= 'z')
 						c -= ' ';
 					if ((c = (char)(c - 0x40U)) >= ' ')
-						throw new InvalidOperationException($"Unrecognized control character {c} in \"{text}\"." +
-															$"\r\nThe_default value will_be_used.");
+						throw new ArgumentException($"Unrecognized control character {c} in \"{text}\".", nameof(text));
 					break;
 				default:
 					KeyValuePair<char, object> custom = customEscapeCharacters.FirstOrDefault(pair => pair.Key == c);
 					sb.Append(custom.Value ?? 
-						 throw new InvalidOperationException($"Unrecognized escape character \\{c} in \"{text}\"." +
-																					  $"\r\nThe_default value will_be_used."));
+						 throw new ArgumentException($"Unrecognized escape character \\{c} in \"{text}\".", nameof(text));
 					pos++;
 					continue;
 			}
@@ -102,28 +98,3 @@ string UnEscape(string text, params KeyValuePair<char, object>[] customEscapeCha
 
 	return sb.ToString();
 }
-/*
-The feature of this function is that you can define your own pseudo esc-characters.
-For example:
-*/
-static class Program
-{
-	class DateTimeNow { public override string ToString() => DateTime.Now.ToString(CultureInfo.InvariantCulture); }
-	
-	static readonly KeyValuePair<char, object>[] CustomEscCharacters = new KeyValuePair<char, object>[]
-	{
-		new KeyValuePair<char, object>('l', Environment.NewLine),  // \l → new line
-		new KeyValuePair<char, object>('d', new DateTimeNow()),    // \d → current date and time.
-	};
-	
-	static void Main()
-	{
-		string original = @"Hello world!\tCurrent date and time is \d\l";
-		string unescaped = UnEscape(original, CustomEscCharacters);
-	}
-}
-/*
-Program's output:  
-
-    Hello world!     Current date and time is 02/07/2022 23:08:39
-*/
