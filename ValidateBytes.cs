@@ -1,9 +1,6 @@
 static unsafe bool ValidateBytes(byte[] bytes, int size = 256)
 {
-    if (size < 1 || size > 256)
-        return false;
-
-    if (bytes == null)
+   if (bytes == null || bytes.Length != size || size > 256)
         return false;
 
     int length = bytes.Length;
@@ -31,7 +28,7 @@ static unsafe bool ValidateBytes(byte[] bytes, int size = 256)
                     for (int i = 0; i < length; i++)
                     {
                         // Check if the current byte has already been seen.
-                        int flag = 1 << bytesPtr[i];
+                        uint flag = 1u << (bytesPtr[i] & 0x1F);
                         if ((seen & flag) != 0)
                             return false;
 
