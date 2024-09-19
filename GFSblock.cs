@@ -10,7 +10,7 @@ namespace TestApp
     {
         static byte[] _bytes = CalculatePi();
 
-        static unsafe byte[] GenerateRandomBytes()
+        static byte[] GenerateRandomBytes()
         {
             const int length = 15;
             byte[] result = new byte[length];
@@ -32,7 +32,6 @@ namespace TestApp
             return result;
         }
 
-
         private static unsafe byte Kappa(int x)
         {
             const byte cstt = 0xFC;
@@ -53,8 +52,7 @@ namespace TestApp
         {
             var F = new GF2n(8, 0b100011101); // Using irreducible polynomial X^8 + X^4 + X^3 + X^2 + 1
 
-            //byte* s = stackalloc byte[] { 0, 12, 9, 8, 7, 4, 14, 6, 5, 10, 2, 11, 1, 3, 13 };
-            byte[] s = GenerateRandomBytes();
+            byte* s = stackalloc byte[] { 0, 12, 9, 8, 7, 4, 14, 6, 5, 10, 2, 11, 1, 3, 13 };
 
             byte[] pi = new byte[256];
             pi[0] = Kappa(0);
@@ -64,11 +62,12 @@ namespace TestApp
                 int l = F.Log(x);
                 int i = l % 17;
                 int j = l / 17;
-
-                byte y = i == 0 
+                //int pow = F.Pow(2, 17) = 0x98;
+                int y = i == 0 
                     ? Kappa(16 - j) 
-                    : (byte)(Kappa(16 - i) ^ (byte)F.Pow(F.Pow(F.Gen(), 17), s[j]));
-                pi[x] = y;
+                    : Kappa(16 - i) ^ F.Pow(0x98, s[j]);
+                
+                pi[x] = (byte)y;
             }
 
             return pi;
@@ -109,7 +108,8 @@ namespace TestApp
             _bytes[255] = 1;
             _bytes[1] = 85;*/
 
-            Console.Write(string.Join(", ", _bytes));
+            string value = string.Join(", ", _bytes);
+            Console.Write(value);
             //Console.Write(string.Join(", ", _bytes.Select(b => $"{b:X}")));
 
 
