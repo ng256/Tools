@@ -1,5 +1,5 @@
 // ShowWindow — A simple application that demonstrates how to use 
-// the ShowWindow function in the Windows API.
+// the ShowWindow function in the Windows API using shellcode.
 //
 // NOTICE: you should compile it for X86 target platform without optimization!
 //
@@ -41,6 +41,10 @@ class Program
     // Import VirtualFree to free allocated memory.
     [DllImport("kernel32.dll")]
     static extern bool VirtualFree(IntPtr lpAddress, uint dwSize, uint dwFreeType);
+
+    // Import GetModuleFileName function from kernel32.dll
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    static extern uint GetModuleFileName(IntPtr hModule, System.Text.StringBuilder lpFilename, uint nSize);
 
     // Shellcode to hide the console window.
     static readonly byte[] Shellcode = new byte[]
@@ -134,16 +138,29 @@ class Program
     };
 
     // Define constants for ShowWindow.
-    private const uint MEM_COMMIT = 0x1000;             // Allocates physical storage for the memory region.
-    private const uint PAGE_EXECUTE_READWRITE = 0x40;   // Allows the memory to be executed and written.
-    private const byte SW_HIDE = 0;                     // Hides the window.
-    private const byte SW_MINIMIZE = 6;                 // Minimizes the window.
-    private const byte SW_RESTORE = 9;                  // Restores the window.
-    private const byte SW_MAXIMIZE = 3;                 // Maximizes the window.
-    private const byte SW_SHOW = 5;                     // Shows the window (default).
+    private const int MAX_PATH = 260;
+    const uint MEM_COMMIT = 0x1000;             // Allocates physical storage for the memory region.
+    const uint PAGE_EXECUTE_READWRITE = 0x40;   // Allows the memory to be executed and written.
+    const byte SW_HIDE = 0;                     // Hides the window.
+    const byte SW_MINIMIZE = 6;                 // Minimizes the window.
+    const byte SW_RESTORE = 9;                  // Restores the window.
+    const byte SW_MAXIMIZE = 3;                 // Maximizes the window.
+    const byte SW_SHOW = 5;                     // Shows the window (default).
 
     // Define a delegate type for the shellcode.
-    private delegate void ShellcodeDelegate();
+    delegate void ShellcodeDelegate();
+
+    static string GetModuleFileName()
+    {
+        // Create a StringBuilder to hold the file name
+        System.Text.StringBuilder fileName = new System.Text.StringBuilder(MAX_PATH);
+
+        // Get the name of the executable file
+        GetModuleFileName(IntPtr.Zero, fileName, (uint)fileName.Capacity);
+
+        // Output the file name
+        return fileName.ToString();
+    }
 
     // Allocates memory for the shellcode, copies the shellcode to that memory, and executes it.
     static void ExecuteShellcode(byte[] shellcode)
@@ -167,7 +184,8 @@ class Program
     // Function to display usage instructions.
     static void ShowUsage()
     {
-        Console.WriteLine("Usage: ShowWindow.exe [option]");
+        string moduleName = GetModuleFileName();
+        Console.WriteLine(string.Format("Usage: {0} [option]", moduleName));
         Console.WriteLine();
         Console.WriteLine("Options:");
         Console.WriteLine("  -h                Hide the console window.");
@@ -177,7 +195,7 @@ class Program
         Console.WriteLine("  -s                Show the console window (default).");
         Console.WriteLine();
         Console.WriteLine("Example that hides the console window:");
-        Console.WriteLine("  ShowWindow.exe -h");
+        Console.WriteLine(string.Format("  {0} -h", moduleName));
     }
 
     static int Main(string[] args)
@@ -239,6 +257,7 @@ class Program
 
         try
         {
+            // Executing shellcode...
             ExecuteShellcode(shellcode);
         }
         catch (Exception ex)
