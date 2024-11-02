@@ -1,9 +1,9 @@
 // ShowWindow — A simple application that demonstrates how to use 
 // the ShowWindow function in the Windows API using shellcode.
 //
-// NOTICE: you should compile it for X86 target platform without optimization!
+// NOTE: you should compile for the X86 target platform without optimization!
 //
-// This project is based on a project by Ege BalcA+, which can be found here: 
+// This program is based on a project by Ege BalcA+, which can be found here: 
 // https://exploit.kitploit.com/2017/03/windows-x86-hide-console-window.html
 // 
 // Copyright © NG256, 2024.
@@ -30,6 +30,7 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 
 class Program
@@ -42,7 +43,7 @@ class Program
     [DllImport("kernel32.dll")]
     static extern bool VirtualFree(IntPtr lpAddress, uint dwSize, uint dwFreeType);
 
-    // Import GetModuleFileName function from kernel32.dll
+    // Import GetModuleFileName that retrieves the path of the executable file of the current process.
     [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     static extern uint GetModuleFileName(IntPtr hModule, System.Text.StringBuilder lpFilename, uint nSize);
 
@@ -137,8 +138,7 @@ class Program
         0xC3                    // ret                      ; Return from main function
     };
 
-    // Define constants for ShowWindow.
-    private const int MAX_PATH = 260;
+    const int  MAX_PATH = 260;                   // Maximum length of a path in Windows.
     const uint MEM_COMMIT = 0x1000;             // Allocates physical storage for the memory region.
     const uint PAGE_EXECUTE_READWRITE = 0x40;   // Allows the memory to be executed and written.
     const byte SW_HIDE = 0;                     // Hides the window.
@@ -149,18 +149,6 @@ class Program
 
     // Define a delegate type for the shellcode.
     delegate void ShellcodeDelegate();
-
-    static string GetModuleFileName()
-    {
-        // Create a StringBuilder to hold the file name
-        System.Text.StringBuilder fileName = new System.Text.StringBuilder(MAX_PATH);
-
-        // Get the name of the executable file
-        GetModuleFileName(IntPtr.Zero, fileName, (uint)fileName.Capacity);
-
-        // Output the file name
-        return fileName.ToString();
-    }
 
     // Allocates memory for the shellcode, copies the shellcode to that memory, and executes it.
     static void ExecuteShellcode(byte[] shellcode)
@@ -179,6 +167,17 @@ class Program
 
         // Free the allocated memory after execution.
         VirtualFree(buffer, 0, 0x8000);
+    }
+
+    // Returns the executable filename in uppercase.
+    static string GetModuleFileName()
+    {
+        System.Text.StringBuilder fileName = new System.Text.StringBuilder(MAX_PATH);
+        uint count = GetModuleFileName(IntPtr.Zero, fileName, (uint)fileName.Capacity);
+
+        return count > 0 
+            ? Path.GetFileNameWithoutExtension(fileName.ToString()).ToUpper() 
+            : "SHWND";
     }
 
     // Function to display usage instructions.
@@ -215,25 +214,28 @@ class Program
         if (args.Length == 1)
         {
             string arg = args[0];
-            if (arg.Length > 1 && (arg.StartsWith("-") || arg.StartsWith("/")))
+            if (arg.Length == 2 && (arg.StartsWith("-") || arg.StartsWith("/")))
             {
                 char param = char.ToLower(arg[1]); // Convert to lower case for case-insensitive comparison.
                 switch (param)
                 {
+                    case '?':
+                        ShowUsage();
+                        return 0;
                     case 'h':
-                        showCommand = SW_HIDE;          // Set command to hide.
+                        showCommand = SW_HIDE;
                         break;
                     case 'm':
-                        showCommand = SW_MINIMIZE;      // Set command to minimize.
+                        showCommand = SW_MINIMIZE;
                         break;
                     case 'r':
-                        showCommand = SW_RESTORE;       // Set command to restore.
+                        showCommand = SW_RESTORE;
                         break;
                     case 'x':
-                        showCommand = SW_MAXIMIZE;      // Set command to maximize.
+                        showCommand = SW_MAXIMIZE;
                         break;
                     case 's':
-                        showCommand = SW_SHOW;          // Set command to show.
+                        showCommand = SW_SHOW;
                         break;
                     default:
                         Console.Error.WriteLine("Error: Invalid parameter.");
@@ -257,7 +259,6 @@ class Program
 
         try
         {
-            // Executing shellcode...
             ExecuteShellcode(shellcode);
         }
         catch (Exception ex)
