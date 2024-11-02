@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 
 static class Program
@@ -34,19 +33,19 @@ static class Program
 
         return count > 0
             ? Path.GetFileNameWithoutExtension(fileName.ToString()).ToUpper()
-            : "SHWND";
+            : "MSGBOX";
     }
 
     static int Main(string[] args)
     {
-        if (args.Length < 2 || args.Contains("/?"))
+        if (args.Length < 2 || args.Length == 1 && args[0] == "/?")
         {
             string moduleName = GetModuleFileName();
             Console.WriteLine($"Usage: {moduleName} \"Title\" \"Message\"");
             Console.WriteLine();
             Console.WriteLine("Options:");
             Console.WriteLine("Title         The dialog box title.");
-            Console.WriteLine("Title         The message to be displayed.");
+            Console.WriteLine("Message         The message to be displayed.");
             return 1;
         }
 
