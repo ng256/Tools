@@ -5,12 +5,6 @@ using System.Runtime.InteropServices;
 static class Program
 {
     [DllImport("kernel32.dll", SetLastError = true)]
-    static extern IntPtr VirtualAlloc(IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);
-
-    [DllImport("kernel32.dll")]
-    static extern bool VirtualFree(IntPtr lpAddress, uint dwSize, uint dwFreeType);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
     static extern IntPtr LoadLibrary(string lpLibFileName);
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -25,6 +19,7 @@ static class Program
     delegate void MessageBox(IntPtr wnd, string title, string message, uint type);
 
     const int MAX_PATH = 260;
+    const string MODULE_NAME = "MSGBOX";
 
     static string GetModuleFileName()
     {
@@ -33,7 +28,7 @@ static class Program
 
         return count > 0
             ? Path.GetFileNameWithoutExtension(fileName.ToString()).ToUpper()
-            : "MSGBOX";
+            : MODULE_NAME;
     }
 
     static int Main(string[] args)
