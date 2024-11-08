@@ -49,30 +49,33 @@ using System;
 using System.Drawing;
 using System.Globalization;
 using System.Windows.Forms;
-using System.Ini; // The namespace for the IniFile class. For details, check out the GitHub page at https://github.com/ng256/IniFile.
+using System.Ini; // The namespace for the IniFile class. For details,
+                  // check out the GitHub page at https://github.com/ng256/IniFile.
 
 [IniSection("Settings")]
 class Notification
 {
-    /***** Default values. ***********************************************************************************************************/
+    /***** Default values. ********************************************************/
 
-    // Default notification duration in seconds if not specified in settings or arguments.
+    // Default notification duration in seconds.
     internal const int DefaultDuration = 5;
 
     // Help message, shown as the notification message if not overridden.
-    internal const string HelpMessage = "Usage: nmsg.exe [options]\n" +
-                                        "Displays a notification message.\n" +
-                                        "Options:\n" +
-                                        "  -title <title>      Sets the title of the notification\n" +
-                                        "  -message <message>  Sets the message of the notification\n" +
-                                        "  -duration <ms>      Sets the display duration of the notification in seconds (default: 5)" +
-                                        "  -warning            Sets the icon to \"Warning\"" +
-                                        "  -error              Sets the icon to \"Error\"";
+    internal const string HelpMessage = 
+        "Usage: nmsg.exe [options]\n" +
+        "Displays a notification message.\n" +
+        "Options:\n" +
+        "  -title <title>      Sets the title of the notification\n" +
+        "  -message <message>  Sets the message of the notification\n" +
+        "  -duration <ms>      Sets the display duration " +
+        "of the notification in seconds (default: 5)" +
+        "  -warning            Sets the icon to \"Warning\"" +
+        "  -error              Sets the icon to \"Error\"";
 
-    // Default notification title, used if not specified elsewhere.
+    // Default notification title.
     internal const string DefaultTitle = "Notification";
 
-    /***** Parameters that can be obtained via command-line argument or INI file. ****************************************************/
+    /* Parameters that can be obtained via command-line argument or INI file. *****/
 
     // Duration of the notification in seconds.
     public int Duration { get; set; } = DefaultDuration;
@@ -86,26 +89,30 @@ class Notification
     // Notification title text.
     public string Title { get; set; } = DefaultTitle;
 
-    /***** Shows the notification with the specified settings. ************************************************************************/
+    /***** Shows the notification with the specified settings. *********************/
 
     public void Show()
     {
         Show(Duration, Title, Message, Icon);
     }
 
-    public static void Show(int duration, string title, string message, ToolTipIcon toolTipIcon)
+    public static void Show(int duration, 
+        string title, 
+        string message, 
+        ToolTipIcon toolTipIcon)
     {
-        const int sustainDelay = 500; // Additional sustain delay in milliseconds after the notification to ensure proper completion
+        // Additional delay to ensure proper completion.
+        const int sustainDelay = 500; 
         duration *= 1000;
 
         using (NotifyIcon notifyIcon = new NotifyIcon())
         {
             notifyIcon.Icon = SystemIcons.Information; // Set the default icon
             notifyIcon.Visible = true;
-            notifyIcon.Text = message.Length < 64 ? message : message.Substring(0, 63);
-            // Display the notification
+
+            // Display the notification.
             notifyIcon.ShowBalloonTip(duration, title, message, toolTipIcon);
-            System.Threading.Thread.Sleep(duration + sustainDelay); // Add the sustain delay after the notification
+            System.Threading.Thread.Sleep(duration + sustainDelay);
         }
     }
 }
@@ -177,8 +184,10 @@ static class Program
         {
             // Show an error notification.
             string errorMessage = "An unexpected error occurred: " + ex.Message;
-            Notification.Show(Notification.DefaultDuration, Notification.DefaultTitle,
-                errorMessage, ToolTipIcon.Error);
+            Notification.Show(Notification.DefaultDuration, 
+                Notification.DefaultTitle,
+                errorMessage, 
+                ToolTipIcon.Error);
 
             return 1; // Exit code 1 indicates an error.
         }
