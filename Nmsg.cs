@@ -1,24 +1,25 @@
 /*
  * nmsg.exe - Simple notification tool for displaying customizable notifications.
  * 
- * Usage: nmsg.exe [message]
- * 
- * Displays a notification message with options for duration, icon, and whether 
- * to wait for user action before closing the notification.
+ * Usage: nmsg.exe [options]
  * 
  * Options:
- *  - Duration: The duration of the notification in milliseconds (default: 5000ms)
- *  - Icon: Type of icon (default: Info). Options: "Information", "Warning", "Error".
- *  - Await: Whether to wait for user action before closing the notification (default: false).
- *  - DefaultMessage: Message to show if no argument is passed (default: Help message).
+ *  -title <title>      Sets the title of the notification (default: "Notification").
+ *  -message <message>  Sets the message of the notification.
+ *  -duration <ms>      Sets the display duration of the notification in seconds (default: 5).
+ *  -warning            Sets the icon to "Warning".
+ *  -error              Sets the icon to "Error".
  * 
- * Example of a config.ini file:
+ * Config file format (config.ini):
  * 
- * [Notification]
- * Duration = 5000
- * NotifyIcon = Information  ; Possible values: "Information", "Warning", "Error"
- * Await = false
- * ; DefaultMessage = "This is the default notification message. You can customize it here."
+ * [Settings]
+ * Duration = 5              ; Notification duration in seconds
+ * Icon = 0                  ; 0 = Information, 1 = Warning, 2 = Error
+ * Title = Notification      ; Default notification title
+ * Message = Default message ; Default notification message
+ * 
+ * If the configuration file is present, its settings are used as defaults,
+ * which can be overridden by command-line arguments.
  * 
  * MIT License
  * 
@@ -43,87 +44,143 @@
  * IN THE SOFTWARE.
  */
 
+
 using System;
+using System.Drawing;
+using System.Globalization;
 using System.Windows.Forms;
 using System.Ini; // The namespace for the IniFile class. For details, check out the GitHub page at https://github.com/ng256/IniFile.
 
-class Program
+[IniSection("Settings")]
+class Notification
 {
-    // Define constants
-    private const string ConfigFilePath = "config.ini"; // Path to the configuration file
-    private const int DefaultDuration = 5000; // Default duration for the notification in milliseconds
-    private const string HelpMessage = "Usage: nmsg.exe [message]\n\nDisplays a notification message.\n\nOptions:\n  - Duration: The duration of the notification (default: 5000ms)\n  - Icon: Type of icon (default: Info)\n  - Await: Whether to wait for user action before closing (default: false)"; // Help message
-    private const int SustainDelay = 500; // Additional sustain delay in milliseconds after the notification to ensure proper completion
+    /***** Default values. ***********************************************************************************************************/
 
-    static void Main(string[] args)
+    // Default notification duration in seconds if not specified in settings or arguments.
+    internal const int DefaultDuration = 5;
+
+    // Help message, shown as the notification message if not overridden.
+    internal const string HelpMessage = "Usage: nmsg.exe [options]\n" +
+                                        "Displays a notification message.\n" +
+                                        "Options:\n" +
+                                        "  -title <title>      Sets the title of the notification\n" +
+                                        "  -message <message>  Sets the message of the notification\n" +
+                                        "  -duration <ms>      Sets the display duration of the notification in seconds (default: 5)" +
+                                        "  -warning            Sets the icon to \"Warning\"" +
+                                        "  -error              Sets the icon to \"Error\"";
+
+    // Default notification title, used if not specified elsewhere.
+    internal const string DefaultTitle = "Notification";
+
+    /***** Parameters that can be obtained via command-line argument or INI file. ****************************************************/
+
+    // Duration of the notification in seconds.
+    public int Duration { get; set; } = DefaultDuration;
+
+    // Icon type for the notification (e.g., Info, Warning, Error).
+    public ToolTipIcon Icon { get; set; } = ToolTipIcon.Info;
+
+    // Notification message text.
+    public string Message { get; set; } = HelpMessage;
+
+    // Notification title text.
+    public string Title { get; set; } = DefaultTitle;
+
+    /***** Shows the notification with the specified settings. ************************************************************************/
+
+    public void Show()
     {
-        try
-        {
-            // Load or create the INI file with parameters if needed
-            IniFile config = IniFile.LoadOrCreate(ConfigFilePath);
-
-            // Read parameters from the "Notification" section
-            int duration = config.ReadInt32("Notification", "Duration", DefaultDuration);  // Use DefaultDuration if not specified
-            string iconType = config.ReadString("Notification", "NotifyIcon", "Information");  // Notification icon type
-            bool awaitUserAction = config.ReadBool("Notification", "Await", false);  // Wait for user action
-            string defaultMessage = config.ReadString("Notification", "DefaultMessage", HelpMessage);  // Use HelpMessage if not specified
-
-            // Use the help message if no text is provided via the command line
-            string message = args.Length > 0 ? string.Join(" ", args) : defaultMessage;
-
-            // Handle iconType and choose the appropriate ToolTipIcon
-            ToolTipIcon toolTipIcon;
-            switch (iconType.ToLower())
-            {
-                case "warning":
-                    toolTipIcon = ToolTipIcon.Warning;
-                    break;
-                case "error":
-                    toolTipIcon = ToolTipIcon.Error;
-                    break;
-                default:
-                    toolTipIcon = ToolTipIcon.Info;
-                    break;
-            }
-
-            // Show the notification
-            ShowNotification(toolTipIcon, duration, message);
-
-            // If the "Await" parameter is true, wait for the user to close the notification
-            if (awaitUserAction)
-            {
-                // Wait for the user to dismiss the notification
-                Application.Run();
-            }
-            else
-            {
-                // Pause to ensure the notification is shown before the program exits
-                System.Threading.Thread.Sleep(duration + SustainDelay); // Add the sustain delay after the notification
-            }
-        }
-        catch (Exception ex)
-        {
-            // General error handling block
-            string errorMessage = "An unexpected error occurred: " + ex.Message;
-
-            // Show an error notification
-            ShowNotification(ToolTipIcon.Error, DefaultDuration, errorMessage);
-        }
+        Show(Duration, Title, Message, Icon);
     }
 
-    // Method to display notifications
-    static void ShowNotification(ToolTipIcon toolTipIcon, int duration, string message)
+    public static void Show(int duration, string title, string message, ToolTipIcon toolTipIcon)
     {
+        const int sustainDelay = 500; // Additional sustain delay in milliseconds after the notification to ensure proper completion
+        duration *= 1000;
+
         using (NotifyIcon notifyIcon = new NotifyIcon())
         {
             notifyIcon.Icon = SystemIcons.Information; // Set the default icon
             notifyIcon.Visible = true;
-
+            notifyIcon.Text = message.Length < 64 ? message : message.Substring(0, 63);
             // Display the notification
-            notifyIcon.ShowBalloonTip(duration, "Notification", message, toolTipIcon);
+            notifyIcon.ShowBalloonTip(duration, title, message, toolTipIcon);
+            System.Threading.Thread.Sleep(duration + sustainDelay); // Add the sustain delay after the notification
+        }
+    }
+}
 
-            // Pause to ensure the notification is shown before the program exits
-            System.Threading.Thread.Sleep(duration + SustainDelay); // Add the sustain delay after the notification
+static class Program
+{
+    [STAThread]
+    static int Main(string[] args)
+    {
+        try
+        {
+            // Path to the configuration file
+            const string configFilePath = "config.ini"; 
+
+            // Load the configuration file.
+            IniFile config = IniFile.LoadOrCreate(configFilePath);
+
+            // Read parameters from the "Settings" section.
+            Notification notification = new Notification();
+            config.ReadSettings(notification);
+
+            // Value to override the default icon.
+            ToolTipIcon icon = ToolTipIcon.None;
+
+            for (var i = 0; i < args.Length; i++)
+            {
+                string arg = args[i];
+
+                // Process arguments prefixed with "-" or "/".
+                if (arg.StartsWith("-") || arg.StartsWith("/"))
+                {
+                    bool notLast = i < args.Length - 1;
+
+                    switch (arg.TrimStart('-', '/').ToLowerInvariant())
+                    {
+                        case "title" when notLast:
+                            notification.Title = args[++i];
+                            break;
+                        case "message" when notLast:
+                            notification.Message = args[++i];
+                            break;
+                        case "duration" when notLast
+                                             && int.TryParse(args[++i],
+                                                 NumberStyles.Integer,
+                                                 CultureInfo.InvariantCulture,
+                                                 out int duration):
+                            notification.Duration = duration;
+                            break;
+                        case "warning" when icon == ToolTipIcon.None:
+                            icon = ToolTipIcon.Warning;
+                            break;
+                        case "error" when icon == ToolTipIcon.None:
+                            icon = ToolTipIcon.Error;
+                            break;
+                    }
+                }
+            }
+
+            // Apply icon override if specified by arguments.
+            if (icon > ToolTipIcon.None) 
+                notification.Icon = icon;
+
+            // Show the notification
+            notification.Show();
+
+            return 0; // Exit code 0 indicates success.
+        }
+        catch (Exception ex) // General error handling block.
+        {
+            // Show an error notification.
+            string errorMessage = "An unexpected error occurred: " + ex.Message;
+            Notification.Show(Notification.DefaultDuration, Notification.DefaultTitle,
+                errorMessage, ToolTipIcon.Error);
+
+            return 1; // Exit code 1 indicates an error.
         }
     }
 }
