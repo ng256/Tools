@@ -379,27 +379,27 @@ namespace System.Security.Cryptography
 Console output:
 
 Phase: 1
-Seed: 873609066
-Encrypted text: ERZaDhBq2JWuCpMiJg==
+Seed: 1095514486
+Encrypted text: gtdaynDeKCjgKEUmug==
 Decrypted text: Hello, world!
 
 Phase: 2
-Seed: 873609065
-Encrypted text: YZ+MfvS2UXNGqx3m/Q==
+Seed: 1095514485
+Encrypted text: an9CzAucHsOu0cUq8g==
 Decrypted text: Hello, world!
 
 Phase: 3
-Seed: 873609064
-Encrypted text: lYZ/sqZEg27S+JdBiw==
+Seed: 1095514484
+Encrypted text: 489jTrsx2bcqQkQlnw==
 Decrypted text: Hello, world!
 
 Phase: 4
-Seed: 873609071
-Encrypted text: HBkNwJictZoECAkMZQ==
+Seed: 1095514483
+Encrypted text: oJcRi9HJyyS9mnnBYg==
 Decrypted text: Hello, world!
 
 Phase: 5
-Seed: 873609070
-Encrypted text: 9shUrU3qqYOCIN7Yog==
+Seed: 1095514482
+Encrypted text: lKWAu8vQNCcdL69tUA==
 Decrypted text: Hello, world!
 *********************************************************************/
