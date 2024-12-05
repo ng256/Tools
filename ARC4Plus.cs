@@ -40,7 +40,7 @@
      - output = (S[a + b] + S[c ⊕ 0xAA]) ⊕ S[j + b]
    - endwhile
 
- ARC4(2022):
+ ARC4(2022)
  Custom S-block Initialization:
  - The S-block is initialized with a pseudo-random byte array obtained using the Linear Congruent Method (LCR) before being passed to PRGA.
  - This differs from the classical algorithm, where the S-block was initialized with a sequence from 0 to 255 (S[i] = i).
@@ -71,9 +71,9 @@
 namespace System.Security.Cryptography
 {
     /// <summary>
-    /// Implements a modified version of the RC4 encryption algorithm
+    /// Implements a modified version of the RC4 encryption algorithm.
     /// </summary>
-    public sealed unsafe class RC4 : ICryptoTransform
+    public sealed unsafe class ARC4CryptoTransform : ICryptoTransform
     {
         // Precomputed values for the linear congruential transformation.
         private static readonly byte[] _A = // All LCR multiplier values.
@@ -107,9 +107,24 @@ namespace System.Security.Cryptography
         private int _x1, _y1, _x2, _y2;
         private bool _disposed = false;
 
+        /// <summary>
+        /// Size of the input data block in bytes.
+        /// </summary>
         public int InputBlockSize => 1;
+
+        /// <summary>
+        /// Size of the output data block in bytes.
+        /// </summary>
         public int OutputBlockSize => 1;
+
+        /// <summary>
+        /// Indicates whether multiple data blocks can be converted.
+        /// </summary>
         public bool CanTransformMultipleBlocks => true;
+
+        /// <summary>
+        /// Indicates whether the transformation can be reused.
+        /// </summary>
         public bool CanReuseTransform => true;
 
         /// <summary>
@@ -117,7 +132,7 @@ namespace System.Security.Cryptography
         /// </summary>
         /// <param name="key">The encryption key.</param>
         /// <param name="iv">The initialization vector (IV).</param>
-        public RC4(byte[] key, byte[] iv)
+        public ARC4CryptoTransform(byte[] key, byte[] iv)
         {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
@@ -166,7 +181,7 @@ namespace System.Security.Cryptography
         /// </summary>
         /// <param name="key">The encryption key.</param>
         /// <param name="seed">The seed value is used as the initialization vector (IV).</param>
-        public RC4(byte[] key, int seed)
+        public ARC4CryptoTransform(byte[] key, int seed)
             : this(key, BitConverter.GetBytes(seed))
         {
         }
@@ -176,7 +191,7 @@ namespace System.Security.Cryptography
         /// </summary>
         /// <param name="key">The encryption key.</param>
         /// <param name="seed">The seed value is used as the initialization vector (IV).</param>
-        public RC4(byte[] key, uint seed)
+        public ARC4CryptoTransform(byte[] key, uint seed)
             : this(key, BitConverter.GetBytes(seed))
         {
         }
@@ -304,7 +319,7 @@ namespace System.Security.Cryptography
         }
 
         /// <summary>
-        /// Releases the resources used by the <see cref="RC4"/> instance.
+        /// Releases the resources used by the <see cref="ARC4CryptoTransform"/> instance.
         /// </summary>
         public void Dispose()
         {
