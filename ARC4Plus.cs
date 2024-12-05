@@ -300,6 +300,9 @@ namespace System.Security.Cryptography
         // The Key Scheduling Algorithm (KSA) used in RC4 to initialize the state array.
         private static void KSA(byte* sblock, byte* key, int keyLength, ref int x, ref int y)
         {
+            if (keyLength < 1) 
+                return;
+
             for (int i = 0, j = 0; i < 256; i++)
             {
                 j = (j + sblock[i] + key[i % keyLength]) % 256;
