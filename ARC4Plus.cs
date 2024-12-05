@@ -135,11 +135,11 @@ namespace System.Security.Cryptography
         public ARC4CryptoTransform(byte[] key, byte[] iv)
         {
             if (key == null)
-                throw new ArgumentNullException(nameof(key));
+                throw new ArgumentNullException(nameof(key), "Key cannot be null.");
             if (iv == null)
-                throw new ArgumentNullException(nameof(iv));
-            if (iv.Length < 4)
-                throw new ArgumentException("IV must be at least 4 bytes long.");
+                throw new ArgumentNullException(nameof(iv), "Initialization vector cannot be null.");
+            if (iv.Length != 4)
+                throw new ArgumentException("Initialization vector must be 4 bytes long.");
 
             byte* ivPtr = stackalloc byte[iv.Length];
             for (int i = 0; i < iv.Length; i++)
@@ -150,8 +150,7 @@ namespace System.Security.Cryptography
             // Perform Linear Congruential Random (LCR) generating and Key Scheduling Algorithm (KSA) on both state arrays.
             fixed (byte* s1Ptr = _s1, s2Ptr = _s2, keyPtr = key)
             {
-                // Apply the LCR operation
-                int ivLength = iv.Length;
+                /***** Apply the LCR operation. *****/
                 LCR(s1Ptr, ivPtr);
 
                 // Shift the IV for the second state array.
@@ -163,16 +162,15 @@ namespace System.Security.Cryptography
                 for (int i = 0; i < 3; i++) 
                     ivPtr[i] = ivPtr[i + 1];
                 ivPtr[3] = swap;
-
                 LCR(s2Ptr, ivPtr);
 
-                // Apply the KSA operation.
+                /***** Apply the KSA operation. *****/
                 int keyLength = key.Length;
                 KSA(s1Ptr, keyPtr, keyLength, ref _x1, ref _y1);
                 KSA(s2Ptr, keyPtr, keyLength, ref _x2, ref _y2);
             }
 
-            // Initialize indices for the state arrays
+            // Initialize indices for the state arrays.
             _x1 = _y1 = _x2 = _y2 = 0;
         }
 
@@ -225,7 +223,7 @@ namespace System.Security.Cryptography
             {
                 for (int i = 0; i < inputCount; i++)
                 {
-                    // Generate an intermediate key bytes.
+                    // Generate an intermediate key bytes using PRGA operation.
                     PRGA(s1Ptr, ref _x1, ref _y1);
                     byte k1 = s1Ptr[(s1Ptr[_x1] + s1Ptr[_y1]) & 0xFF];
                     PRGA(s2Ptr, ref _x2, ref _y2);
@@ -234,7 +232,7 @@ namespace System.Security.Cryptography
                     // Combine the two key bytes using additional nonlinear transformations.
                     byte k = (byte)((k1 + k2) ^ ((k1 << 5) | (k2 >> 3)));
 
-                    // XOR the key byte with the input to produce the output
+                    // XOR the key byte with the input to produce the output.
                     outputBuffer[outputOffset + i] = (byte)(inputBuffer[inputOffset + i] ^ k);
                 }
             }
@@ -263,6 +261,17 @@ namespace System.Security.Cryptography
             return finalBlock;
         }
 
+        // Swap state array values.
+        private static void Swap(byte* array, int x, int y)
+        {
+            if (x != y)
+            {
+                array[x] ^= array[y];
+                array[y] ^= array[x];
+                array[x] ^= array[y];
+            }
+        }
+
         // The Linear Congruential Generator (LCR) operation used in RC4.
         private static void LCR(byte* sblock, byte* iv)
         {
@@ -286,17 +295,6 @@ namespace System.Security.Cryptography
             x = (x + 1) & 0xFF;
             y = (y + sblock[x]) & 0xFF;
             Swap(sblock, x, y);
-        }
-
-        // Swap state array values.
-        private static void Swap(byte* array, int x, int y)
-        {
-            if (x != y)
-            {
-                array[x] ^= array[y];
-                array[y] ^= array[x];
-                array[x] ^= array[y];
-            }
         }
 
         // The Key Scheduling Algorithm (KSA) used in RC4 to initialize the state array.
