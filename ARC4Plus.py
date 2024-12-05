@@ -113,7 +113,6 @@ class ARC4CryptoTransform:
         self._key = key
         self._iv = iv
         self._x1 = self._y1 = self._x2 = self._y2 = 0
-        self._disposed = False
 
         self._initialize(key, iv)
 
@@ -200,13 +199,6 @@ class ARC4CryptoTransform:
         final_block = bytearray(input_count)
         self.transform_block(input_buffer, input_offset, input_count, final_block, 0)
         return final_block
-
-    def dispose(self):
-        if not self._disposed:
-            self._s1 = [0] * 256
-            self._s2 = [0] * 256
-            self._x1 = self._y1 = self._x2 = self._y2 = 0
-            self._disposed = True
 
 # Test function
 if __name__ == "__main__":
