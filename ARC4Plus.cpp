@@ -246,7 +246,6 @@ std::vector<uint8_t> ARC4CryptoTransform::transform_final_block(const std::vecto
 
 // Test function
 int main() {
-    std::string encoding = "utf-8";
     std::vector<uint8_t> key = { 'p', 'a', 's', 's', 'w', 'o', 'r', 'd' };
     std::vector<uint8_t> data = { 'H', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '!' };
     std::random_device rd;
