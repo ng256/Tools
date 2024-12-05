@@ -1,32 +1,100 @@
-using System;
+/*
+ Implements a modified version of the RC4 encryption algorithm, incorporating enhancements from RC4A and RC4+.
+ This implementation differs from the standard RC4 algorithm by using two S-blocks (S₁ and S₂) instead of one,
+ and includes additional nonlinear transformations for improved security and performance.
 
+ RC4A (2004):
+ - Introduced by Souradyuti Paul and Bart Preneel.
+ - Uses two S-blocks (S₁ and S₂) with corresponding counters (j₁ and j₂).
+ - Generates two bytes of ciphertext per iteration.
+ - Algorithm:
+   - i = 0
+   - j₁ = 0
+   - j₂ = 0
+   - while generating:
+     - i = i + 1
+     - j₁ = (j₁ + S₁[i]) mod 256
+     - Swap S₁[i] and S₁[j₁]
+     - I₂ = (S₁[i] + S₁[j₁]) mod 256
+     - output = S₂[I₂]
+     - j₂ = (j₂ + S₂[i]) mod 256
+     - Swap S₂[i] and S₂[j₂]
+     - I₁ = (S₂[i] + S₂[j₂]) mod 256
+     - output = S₁[I₁]
+   - endwhile
+
+ RC4+ (2008):
+ - Introduced by Subhamoy Maitra and Goutam Paul.
+ - Modifies the Key Scheduling Algorithm (KSA+) using 3-level scrambling.
+ - Modifies the Pseudo-Random Generation Algorithm (PRGA+).
+ - Algorithm:
+   - All arithmetic operations are performed mod 256.
+   - while generating:
+     - i = i + 1
+     - a = S[i]
+     - j = j + a
+     - b = S[j]
+     - S[i] = b (swap S[i] and S[j])
+     - S[j] = a
+     - c = S[i << 5 ⊕ j >> 3] + S[j << 5 ⊕ i >> 3]
+     - output = (S[a + b] + S[c ⊕ 0xAA]) ⊕ S[j + b]
+   - endwhile
+
+ ARC4(2022):
+ Custom S-block Initialization:
+ - The S-block is initialized with a pseudo-random byte array obtained using the Linear Congruent Method (LCR) before being passed to PRGA.
+ - This differs from the classical algorithm, where the S-block was initialized with a sequence from 0 to 255 (S[i] = i).
+ - For classic behavior, use ARC4SBlock.DefaultSBlock as an initialization vector.
+ - Ensure the initialization vector is consistent to prevent corruption of decrypted data.
+
+ LCR Details:
+ - The LCR method calculates a sequence of random numbers X[i] using:
+   - X[i+1] = (A • X[i] + C) MOD M
+   - M is the modulus (a natural number M ≥ 2).
+   - A is the factor (0 ≤ A < M).
+   - C is the increment (0 ≤ C < M).
+   - X[0] is the initial value (0 ≤ X[0] < M).
+   - Index i changes sequentially within 0 ≤ i < M.
+ - LCR creates a sequence of M non-duplicate pseudo-random values when:
+   - The numbers C and M are coprime.
+   - B = A - 1 is a multiple of P for every prime P that divides M.
+   - B is a multiple of 4 if M is a multiple of 4.
+ - Optimization:
+   - X[i+1] = R ⊕ (A • X[i] + C) mod M
+   - X[i] ∈ (0, 256)
+   - X[0] is a random start value.
+   - M = 256
+   - R ∈ (0, 256) is a random constant for best randomization.
+   - A ∈ (9, 249) and A - 1 can be divided by 4.
+   - C ∈ (5, 251) and C is a prime number.
+ */
 namespace System.Security.Cryptography
 {
     /// <summary>
-    /// RC4 encryption algorithm implementation.
+    /// Implements a modified version of the RC4 encryption algorithm
     /// </summary>
-    public unsafe class RC4 : ICryptoTransform
+    public sealed unsafe class RC4 : ICryptoTransform
     {
-        // Precomputed values for the linear congruential transformation (LCR)
-        private static readonly byte[] _A = // Multipliers.
+        // Precomputed values for the linear congruential transformation.
+        private static readonly byte[] _A = // All LCR multiplier values.
         {
-            0x09, 0x0D, 0x11, 0x15, 0x19, 0x1d, 0x21, 0x25, 
+            0x09, 0x0D, 0x11, 0x15, 0x19, 0x1d, 0x21, 0x25,
             0x29, 0x2d, 0x31, 0x35, 0x39, 0x3d, 0x41, 0x45,
-            0x49, 0x4d, 0x51, 0x55, 0x59, 0x5d, 0x61, 0x65, 
+            0x49, 0x4d, 0x51, 0x55, 0x59, 0x5d, 0x61, 0x65,
             0x69, 0x6d, 0x71, 0x75, 0x79, 0x7d, 0x81, 0x85,
-            0x89, 0x8d, 0x91, 0x95, 0x99, 0x9d, 0xa1, 0xa5, 
+            0x89, 0x8d, 0x91, 0x95, 0x99, 0x9d, 0xa1, 0xa5,
             0xa9, 0xad, 0xb1, 0xb5, 0xb9, 0xbd, 0xc1, 0xc5,
-            0xc9, 0xcd, 0xd1, 0xd5, 0xd9, 0xdd, 0xe1, 0xe5, 
+            0xc9, 0xcd, 0xd1, 0xd5, 0xd9, 0xdd, 0xe1, 0xe5,
             0xe9, 0xed, 0xf1, 0xf5, 0xf9
         };
 
-        private static readonly byte[] _C = // Increments.
+        private static readonly byte[] _C = // All LCR increment values.
         {
-            0x05, 0x07, 0x0B, 0xD, 0x11, 0x13, 0x17, 0x1d, 
+            0x05, 0x07, 0x0B, 0x0D, 0x11, 0x13, 0x17, 0x1d,
             0x1f, 0x25, 0x29, 0x2b, 0x2f, 0x35, 0x3b, 0x3d,
-            0x43, 0x47, 0x49, 0x4f, 0x53, 0x59, 0x61, 0x65, 
+            0x43, 0x47, 0x49, 0x4f, 0x53, 0x59, 0x61, 0x65,
             0x67, 0x6b, 0x6d, 0x71, 0x7f, 0x83, 0x89, 0x8b,
-            0x95, 0x97, 0x9d, 0xa3, 0xa7, 0xad, 0xb3, 0xb5, 
+            0x95, 0x97, 0x9d, 0xa3, 0xa7, 0xad, 0xb3, 0xb5,
             0xbf, 0xc1, 0xc5, 0xc7, 0xd3, 0xdf, 0xe3, 0xe5,
             0xe9, 0xef, 0xf1, 0xfb
         };
@@ -36,7 +104,7 @@ namespace System.Security.Cryptography
         private byte[] _s2 = new byte[256];
 
         // Indices for both state arrays.
-        private int _i1, _j1, _i2, _j2;
+        private int _x1, _y1, _x2, _y2;
         private bool _disposed = false;
 
         public int InputBlockSize => 1;
@@ -51,8 +119,12 @@ namespace System.Security.Cryptography
         /// <param name="iv">The initialization vector (IV).</param>
         public RC4(byte[] key, byte[] iv)
         {
-            if (key == null || iv == null)
-                throw new ArgumentNullException("Key or IV cannot be null.");
+            if (key == null)
+                throw new ArgumentNullException(nameof(key));
+            if (iv == null)
+                throw new ArgumentNullException(nameof(iv));
+            if (iv.Length < 4)
+                throw new ArgumentException("IV must be at least 4 bytes long.");
 
             byte* ivPtr = stackalloc byte[iv.Length];
             for (int i = 0; i < iv.Length; i++)
@@ -60,24 +132,33 @@ namespace System.Security.Cryptography
                 ivPtr[i] = iv[i];
             }
 
-
             // Perform Linear Congruential Random (LCR) generating and Key Scheduling Algorithm (KSA) on both state arrays.
-            fixed (byte* s1Ptr = _s1, s2Ptr = _s2)
+            fixed (byte* s1Ptr = _s1, s2Ptr = _s2, keyPtr = key)
             {
                 // Apply the LCR operation
                 int ivLength = iv.Length;
-                LCR(_s1, ivPtr, ivLength);       
-                ShiftIV(ivPtr, ivLength); // Modify the IV for the second state array
-                RotateIV(ivPtr, ivLength); // Rotate the IV for further modification
-                LCR(_s2, ivPtr, ivLength);
+                LCR(s1Ptr, ivPtr);
 
-                // Apply the KSA operation
-                KSA(s1Ptr, key);
-                KSA(s2Ptr, key);
+                // Shift the IV for the second state array.
+                for (int i = 0; i < 4; i++)
+                    ivPtr[i] = (byte)((ivPtr[i] + 128) & 0xFF);
+                
+                // Rotate the IV for further modification.
+                byte t = ivPtr[0];
+                for (int i = 0; i < 3; i++) 
+                    ivPtr[i] = ivPtr[i + 1];
+                ivPtr[3] = t;
+
+                LCR(s2Ptr, ivPtr);
+
+                // Apply the KSA operation.
+                int keyLength = key.Length;
+                KSA(s1Ptr, keyPtr, keyLength, ref _x1, ref _y1);
+                KSA(s2Ptr, keyPtr, keyLength, ref _x2, ref _y2);
             }
 
             // Initialize indices for the state arrays
-            _i1 = _j1 = _i2 = _j2 = 0;
+            _x1 = _y1 = _x2 = _y2 = 0;
         }
 
         /// <summary>
@@ -86,6 +167,16 @@ namespace System.Security.Cryptography
         /// <param name="key">The encryption key.</param>
         /// <param name="seed">The seed value is used as the initialization vector (IV).</param>
         public RC4(byte[] key, int seed)
+            : this(key, BitConverter.GetBytes(seed))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the RC4 instance with a key and a 4-byte IV represented by an integer.
+        /// </summary>
+        /// <param name="key">The encryption key.</param>
+        /// <param name="seed">The seed value is used as the initialization vector (IV).</param>
+        public RC4(byte[] key, uint seed)
             : this(key, BitConverter.GetBytes(seed))
         {
         }
@@ -101,16 +192,35 @@ namespace System.Security.Cryptography
         /// <returns>The number of bytes processed.</returns>
         public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset)
         {
-            if (inputBuffer == null || outputBuffer == null)
-                throw new ArgumentNullException("Input or output buffer cannot be null.");
+            if (inputBuffer == null)
+                throw new ArgumentNullException(nameof(inputBuffer), "Input buffer cannot be null.");
+            if (outputBuffer == null)
+                throw new ArgumentNullException(nameof(outputBuffer), "Output buffer cannot be null.");
+            if (inputOffset < 0 || inputOffset >= inputBuffer.Length)
+                throw new ArgumentOutOfRangeException(nameof(inputOffset), "Input offset is out of range for the input buffer.");
+            if (inputCount < 0 || inputOffset + inputCount > inputBuffer.Length)
+                throw new ArgumentOutOfRangeException(nameof(inputCount), "Input count is out of range for the input buffer.");
+            if (outputOffset < 0 || outputOffset >= outputBuffer.Length)
+                throw new ArgumentOutOfRangeException(nameof(outputOffset), "Output offset is out of range for the output buffer.");
+            if (outputOffset + inputCount > outputBuffer.Length)
+                throw new ArgumentOutOfRangeException(nameof(outputOffset), "Output buffer is too small to receive the transformed data.");
+
 
             fixed (byte* s1Ptr = _s1, s2Ptr = _s2)
             {
                 for (int i = 0; i < inputCount; i++)
                 {
-                    byte k1 = NextByte(s1Ptr, ref _i1, ref _j1); // Generate a key byte from the first state array
-                    byte k2 = NextByte(s2Ptr, ref _i2, ref _j2); // Generate a key byte from the second state array
-                    outputBuffer[outputOffset + i] = (byte)(inputBuffer[inputOffset + i] ^ k1 ^ k2); // XOR with input to get output
+                    // Generate an intermediate key bytes.
+                    PRGA(s1Ptr, ref _x1, ref _y1);
+                    byte k1 = s1Ptr[(s1Ptr[_x1] + s1Ptr[_y1]) & 0xFF];
+                    PRGA(s2Ptr, ref _x2, ref _y2);
+                    byte k2 = s2Ptr[(s2Ptr[_x2] + s2Ptr[_y2]) & 0xFF];
+
+                    // Combine the two key bytes using additional nonlinear transformations.
+                    byte k = (byte)((k1 + k2) ^ ((k1 << 5) | (k2 >> 3)));
+
+                    // XOR the key byte with the input to produce the output
+                    outputBuffer[outputOffset + i] = (byte)(inputBuffer[inputOffset + i] ^ k);
                 }
             }
 
@@ -126,71 +236,41 @@ namespace System.Security.Cryptography
         /// <returns>The transformed final block of data.</returns>
         public byte[] TransformFinalBlock(byte[] inputBuffer, int inputOffset, int inputCount)
         {
+            if (inputBuffer == null)
+                throw new ArgumentNullException(nameof(inputBuffer), "Input buffer cannot be null.");
+            if (inputOffset < 0 || inputOffset >= inputBuffer.Length)
+                throw new ArgumentOutOfRangeException(nameof(inputOffset), "Input offset is out of range for the input buffer.");
+            if (inputCount < 0 || inputOffset + inputCount > inputBuffer.Length)
+                throw new ArgumentOutOfRangeException(nameof(inputCount), "Input count is out of range for the input buffer.");
+
             byte[] finalBlock = new byte[inputCount];
             TransformBlock(inputBuffer, inputOffset, inputCount, finalBlock, 0);
             return finalBlock;
         }
 
         // The Linear Congruential Generator (LCR) operation used in RC4.
-        private static void LCR(byte* sblock, byte* iv, int length)
+        private static void LCR(byte* sblock, byte* iv)
         {
-            if (length < 4)
-                throw new ArgumentException("IV must be at least 4 bytes long.");
-
             // Extract the initialization vector (IV) values.
-            int r = iv[0]; // The first byte of the IV.
-            int x = iv[1]; // The second byte of the IV.
-            int a = _A[iv[2] % _A.Length]; // Using precomputed values for 'a' (multiplier).
-            int c = _C[iv[3] % _C.Length]; // Using precomputed values for 'c' (increment).
-            const int m = 256; // Modulus for the transformation.
+            int r = iv[0]; // Nolinear transformation value.
+            int x = iv[1]; // First value.
+            int a = _A[iv[2] % _A.Length]; // Multiplier.
+            int c = _C[iv[3] % _C.Length]; // Increment.
 
             // Apply the Linear Congruential Transformation.
-            for (int i = 0; i < m; i++)
+            for (int i = 0; i < 256; i++)
             {
-                r = (a * r + c) % m;
-                sblock[i] = (byte)(r);
+                sblock[i] = (byte)(r ^ (x = (a * x + c) & 0xFF));
             }
-        }
-
-        // Skips the first N bytes in the state array due to their correlation with the key.
-        private static void DropDown(byte* sblock, int n, ref int x, ref int y)
-        {
-            for (int i = 0; i < n; i++)
-            {
-                // Perform the swapping of state array values.
-                x = (x + 1) & 0xFF;
-                y = (y + sblock[x]) & 0xFF;
-                Swap(sblock, x, y);
-            }
-        }
-
-        // Shifts the IV used in the RC4 initialization.
-        private static void ShiftIV(byte* iv, int length)
-        {
-            for (int i = 0; i < length; i++)
-            {
-                iv[i] = (byte)(iv[i] + i);
-            }
-        }
-
-        // Rotates the IV for further modification.
-        private static void RotateIV(byte* iv, int length)
-        {
-            byte temp = iv[0];
-            for (int i = 0; i < length - 1; i++)
-            {
-                iv[i] = iv[i + 1];
-            }
-            iv[length - 1] = temp;
         }
 
         // Performs PRGA operation.
-        private static byte NextByte(byte* sblock, ref int x, ref int y)
+        private static void PRGA(byte* sblock, ref int x, ref int y)
         {
+            // Perform the swapping of state array values.
             x = (x + 1) & 0xFF;
             y = (y + sblock[x]) & 0xFF;
             Swap(sblock, x, y);
-            return sblock[(sblock[x] + sblock[y]) & 0xFF];
         }
 
         // Swap state array values.
@@ -205,26 +285,34 @@ namespace System.Security.Cryptography
         }
 
         // The Key Scheduling Algorithm (KSA) used in RC4 to initialize the state array.
-        private static void KSA(byte* sblock, byte[] key, ref int x, ref int y)
+        private static void KSA(byte* sblock, byte* key, int keyLength, ref int x, ref int y)
         {
-            for (int i = 0, int j = 0; i < 256; i++)
+            for (int i = 0, j = 0; i < 256; i++)
             {
-                j = (j + sblock[i] + key[i % key.Length]) % 256;
-                
+                j = (j + sblock[i] + key[i % keyLength]) % 256;
                 Swap(sblock, i, j);
             }
 
-            DropDown(sblock, 256, ref x, ref y); // Skip the first 256 bytes to remove correlation with the key.
+            // Skip the first 256 bytes to reduce correlation with the key.
+            for (int i = 0; i < 256; i++)
+            {
+                // Performs PRGA operation.
+                x = (x + 1) & 0xFF;
+                y = (y + sblock[x]) & 0xFF;
+                Swap(sblock, x, y);
+            }
         }
 
-        // Releases the resources used by the RC4 instance.
+        /// <summary>
+        /// Releases the resources used by the <see cref="RC4"/> instance.
+        /// </summary>
         public void Dispose()
         {
             if (!_disposed)
             {
                 Array.Clear(_s1, 0, _s1.Length);
                 Array.Clear(_s2, 0, _s2.Length);
-                _i1 = _j1 = _i2 = _j2 = 0;
+                _x1 = _y1 = _x2 = _y2 = 0;
                 _disposed = true;
             }
         }
