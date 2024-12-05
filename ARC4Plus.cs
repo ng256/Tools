@@ -1,7 +1,10 @@
-/*
- Implements a modified version of the RC4 encryption algorithm, incorporating enhancements from RC4A and RC4+.
- This implementation differs from the standard RC4 algorithm by using two S-blocks (S₁ and S₂) instead of one,
- and includes additional nonlinear transformations for improved security and performance.
+/********************************************************************
+ Implements a modified version of the RC4 encryption algorithm, 
+ incorporating enhancements from RC4A and RC4+.
+ This implementation differs from the standard RC4 algorithm 
+ by using two S-blocks (S₁ and S₂) instead of one,
+ and includes additional nonlinear transformations 
+ for improved security and performance.
 
  RC4A (2004):
  - Introduced by Souradyuti Paul and Bart Preneel.
@@ -42,8 +45,10 @@
 
  ARC4(2022)
  Custom S-block Initialization:
- - The S-block is initialized with a pseudo-random byte array obtained using the Linear Congruent Method (LCR) before being passed to PRGA.
- - This differs from the classical algorithm, where the S-block was initialized with a sequence from 0 to 255 (S[i] = i).
+ - The S-block is initialized with a pseudo-random byte array obtained using 
+   the Linear Congruent Method (LCR) before being passed to PRGA.
+ - This differs from the classical algorithm, where the S-block was initialized 
+   with a sequence from 0 to 255 (S[i] = i).
  - For classic behavior, use ARC4SBlock.DefaultSBlock as an initialization vector.
  - Ensure the initialization vector is consistent to prevent corruption of decrypted data.
 
@@ -67,7 +72,9 @@
    - R ∈ (0, 256) is a random constant for best randomization.
    - A ∈ (9, 249) and A - 1 can be divided by 4.
    - C ∈ (5, 251) and C is a prime number.
- */
+ ********************************************************************/
+using System.Text;
+
 namespace System.Security.Cryptography
 {
     /// <summary>
@@ -102,6 +109,9 @@ namespace System.Security.Cryptography
         // Internal state arrays for RC4.
         private byte[] _s1 = new byte[256];
         private byte[] _s2 = new byte[256];
+
+        private byte[] _key;
+        private byte[] _iv;
 
         // Indices for both state arrays.
         private int _x1, _y1, _x2, _y2;
@@ -332,5 +342,64 @@ namespace System.Security.Cryptography
                 _disposed = true;
             }
         }
+
+        // Test function can be just removed.
+        internal static void Main(string[] args)
+        {
+            Encoding encoding = Encoding.UTF8;
+            Random random = new Random();
+            byte[] key = encoding.GetBytes("password");
+            byte[] data = encoding.GetBytes("Hello, world!");
+            byte[] encrypted, decrypted;
+            int seed = random.Next();
+            for (int i = 1; i <= 5; i++)
+            {
+
+                using (var rc4 = new ARC4CryptoTransform(key, seed ^ i))
+                {
+                    encrypted = rc4.TransformFinalBlock(data, 0, data.Length);
+                }
+
+                using (var rc4 = new ARC4CryptoTransform(key, seed ^ i))
+                {
+                    decrypted = rc4.TransformFinalBlock(encrypted, 0, encrypted.Length);
+                }
+                string text = encoding.GetString(decrypted);
+                Console.WriteLine($"Phase: {i}");
+                Console.WriteLine($"Seed: {seed ^ i}");
+                Console.WriteLine($"Encrypted text: {Convert.ToBase64String(encrypted)}");
+                Console.WriteLine($"Decrypted text: {text}");
+                Console.WriteLine();
+            }
+            Console.ReadKey(true);
+        }
     }
 }
+/********************************************************************
+Console output:
+
+Phase: 1
+Seed: 873609066
+Encrypted text: ERZaDhBq2JWuCpMiJg==
+Decrypted text: Hello, world!
+
+Phase: 2
+Seed: 873609065
+Encrypted text: YZ+MfvS2UXNGqx3m/Q==
+Decrypted text: Hello, world!
+
+Phase: 3
+Seed: 873609064
+Encrypted text: lYZ/sqZEg27S+JdBiw==
+Decrypted text: Hello, world!
+
+Phase: 4
+Seed: 873609071
+Encrypted text: HBkNwJictZoECAkMZQ==
+Decrypted text: Hello, world!
+
+Phase: 5
+Seed: 873609070
+Encrypted text: 9shUrU3qqYOCIN7Yog==
+Decrypted text: Hello, world!
+*********************************************************************/
