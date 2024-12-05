@@ -76,6 +76,7 @@ LCR Details:
 
 import random
 import struct
+import base64
 
 class ARC4CryptoTransform:
     # Precomputed values for the linear congruential transformation.
@@ -113,6 +114,7 @@ class ARC4CryptoTransform:
         self._key = key
         self._iv = iv
         self._x1 = self._y1 = self._x2 = self._y2 = 0
+        self._disposed = False
 
         self._initialize(key, iv)
 
@@ -183,6 +185,9 @@ class ARC4CryptoTransform:
             # Combine the two key bytes using additional nonlinear transformations.
             k = (k1 + k2) ^ ((k1 << 5) | (k2 >> 3))
 
+            # Ensure k is within the valid range
+            k = k & 0xFF
+
             # XOR the key byte with the input to produce the output.
             output_buffer[output_offset + i] = input_buffer[input_offset + i] ^ k
 
@@ -200,10 +205,15 @@ class ARC4CryptoTransform:
         self.transform_block(input_buffer, input_offset, input_count, final_block, 0)
         return final_block
 
+    def dispose(self):
+        if not self._disposed:
+            self._s1 = [0] * 256
+            self._s2 = [0] * 256
+            self._x1 = self._y1 = self._x2 = self._y2 = 0
+            self._disposed = True
+
 # Test function
 if __name__ == "__main__":
-    import base64
-
     encoding = 'utf-8'
     key = "password".encode(encoding)
     data = "Hello, world!".encode(encoding)
@@ -220,6 +230,9 @@ if __name__ == "__main__":
         print(f"Encrypted text: {base64.b64encode(encrypted).decode(encoding)}")
         print(f"Decrypted text: {text}")
         print()
+
+    input("Press Enter to exit...")
+
 """
 Console output:
 
