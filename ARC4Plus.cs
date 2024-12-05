@@ -159,10 +159,10 @@ namespace System.Security.Cryptography
                     ivPtr[i] = (byte)((ivPtr[i] + 128) & 0xFF);
                 
                 // Rotate the IV for further modification.
-                byte t = ivPtr[0];
+                byte swap = ivPtr[0];
                 for (int i = 0; i < 3; i++) 
                     ivPtr[i] = ivPtr[i + 1];
-                ivPtr[3] = t;
+                ivPtr[3] = swap;
 
                 LCR(s2Ptr, ivPtr);
 
