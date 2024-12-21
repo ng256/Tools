@@ -44,6 +44,7 @@ using System.IO;
 
 public class CustomDisposableResource : Disposable
 {
+    // Fields that will be auto-desposed.
     private FileStream _fileStream;
     private IntPtr _nativeResource;
 
