@@ -308,6 +308,7 @@ namespace System
         private async Task DisposePropertiesAsync()
         {
             Type type = GetType();
+
             const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
             PropertyInfo[] properties =
             (
