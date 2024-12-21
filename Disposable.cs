@@ -51,7 +51,7 @@ namespace System
     public abstract class Disposable : IDisposable, IAsyncDisposable
     {
         private bool _disposed = false; // Tracks whether the object has been disposed.
-        private readonly HashSet<object> _disposedObjects = new HashSet<object>(); // Tracks already disposed objects.
+        private readonly ConcurrentHashSet<object> _disposedObjects = new ConcurrentHashSet<object>(); // Tracks already disposed objects.
         private bool _ignoreExceptions = false;
 
         /// <summary>
@@ -470,6 +470,45 @@ namespace System
             // TODO: Derived classes must implement custom logic for cleaning up unmanaged resources.
 
             return Task.CompletedTask;
+        }
+
+        #endregion
+
+        #region Hash Set Implementation
+
+        // A thread-safe hash set implementation.
+        private class ConcurrentHashSet<T>
+        {
+            private readonly HashSet<T> _hashSet = new HashSet<T>();
+            private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+
+            // Adds an element to the set.
+            public bool Add(T item)
+            {
+                _semaphore.Wait();
+                try
+                {
+                    return _hashSet.Add(item);
+                }
+                finally
+                {
+                    _semaphore.Release();
+                }
+            }
+
+            // Determines whether the set contains a specific element.
+            public bool Contains(T item)
+            {
+                _semaphore.Wait();
+                try
+                {
+                    return _hashSet.Contains(item);
+                }
+                finally
+                {
+                    _semaphore.Release();
+                }
+            }
         }
 
         #endregion
