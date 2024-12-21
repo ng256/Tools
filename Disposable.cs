@@ -27,7 +27,6 @@
  */
 
 using System.Collections;
-using System.Diagnostics;
 using System.Reflection;
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
 
@@ -159,25 +158,32 @@ namespace System
         // Disposes a single value, checking if it is an IDisposable or a collection.
         private void DisposeValue(object value, string source)
         {
-            if (value is IDisposable disposable)
+            try
             {
-                try
+                switch (value)
                 {
-                    disposable.Dispose(); // Dispose the resource.
-                }
-                catch (Exception e)
-                {
-                    if (!_ignoreExceptions)
-                        throw new InvalidOperationException($"Failed to dispose {source}: {e}", e);
-                }
-                finally
-                {
-                    _disposedObjects.Add(value); // Mark as disposed.
+                    // Wait for the async dispose.
+                    case IAsyncDisposable asyncDisposable:
+                        asyncDisposable.DisposeAsync()
+                            .AsTask()
+                            .GetAwaiter()
+                            .GetResult();
+                        return;
+
+                    // Dispose the resource.
+                    case IDisposable disposable:
+                        disposable.Dispose();
+                        return;
                 }
             }
-            else if (value is IEnumerable enumerable)
+            catch (Exception e)
             {
-                DisposeEnumerable(enumerable, source); // Dispose each item in the collection.
+                if (!_ignoreExceptions)
+                    throw new InvalidOperationException($"Failed to dispose {source}: {e}", e);
+            }
+            finally
+            {
+                _disposedObjects.Add(value); // Mark as disposed.
             }
         }
 
@@ -186,21 +192,21 @@ namespace System
         {
             foreach (object item in enumerable)
             {
-                if (item is IDisposable disposableItem && !_disposedObjects.Contains(item))
+                if (item is not IDisposable disposableItem || _disposedObjects.Contains(item)) 
+                    continue;
+
+                try
                 {
-                    try
-                    {
-                        disposableItem.Dispose(); // Dispose the item.
-                    }
-                    catch (Exception e)
-                    {
-                        if (!_ignoreExceptions)
-                            throw new InvalidOperationException($"Failed to dispose item in collection {source}: {e}", e);
-                    }
-                    finally
-                    {
-                        _disposedObjects.Add(item); // Mark as disposed.
-                    }
+                    disposableItem.Dispose(); // Dispose the item.
+                }
+                catch (Exception e)
+                {
+                    if (!_ignoreExceptions)
+                        throw new InvalidOperationException($"Failed to dispose item in collection {source}: {e}", e);
+                }
+                finally
+                {
+                    _disposedObjects.Add(item); // Mark as disposed.
                 }
             }
         }
@@ -235,20 +241,6 @@ namespace System
 
         #region Asynchronous Methods
 
-        private ValueTask DisposeTask()
-        {
-            try
-            {
-                Dispose(); // Synchronously dispose resources
-                return ValueTask.CompletedTask; // If Dispose completes successfully, return completed task.
-            }
-            catch (Exception e)
-            {
-                // If Dispose throws an exception, return it as part of ValueTask
-                return ValueTask.FromException(e);
-            }
-        }
-
         /// <summary>
         /// Asynchronously disposes the resources managed by the class.
         /// </summary>
@@ -256,7 +248,6 @@ namespace System
         {
             try
             {
-                await DisposeTask();
                 await DisposeAsync(true); // Asynchronously dispose managed and unmanaged resources.
                 GC.SuppressFinalize(this); // Prevent finalizer from running.
             }
@@ -346,25 +337,29 @@ namespace System
         // Asynchronously disposes a single value.
         private async Task DisposeValueAsync(object value, string source)
         {
-            if (value is IAsyncDisposable asyncDisposable)
+            try
             {
-                try
+                switch (value)
                 {
-                    await asyncDisposable.DisposeAsync(); // Asynchronously dispose the resource.
-                }
-                catch (Exception e)
-                {
-                    if (!_ignoreExceptions)
-                        throw new InvalidOperationException($"Failed to dispose {source}: {e}", e);
-                }
-                finally
-                {
-                    _disposedObjects.Add(value); // Mark as disposed.
+                    // Asynchronously dispose the resource.
+                    case IAsyncDisposable asyncDisposable:
+                        await asyncDisposable.DisposeAsync();
+                        return;
+
+                    // Dispose the resource.
+                    case IDisposable disposable:
+                        disposable.Dispose(); 
+                        return;
                 }
             }
-            else if (value is IEnumerable enumerable)
+            catch (Exception e)
             {
-                await DisposeEnumerableAsync(enumerable, source); // Asynchronously dispose each item in the collection.
+                if (!_ignoreExceptions)
+                    throw new InvalidOperationException($"Failed to dispose {source}: {e}", e);
+            }
+            finally
+            {
+                _disposedObjects.Add(value); // Mark as disposed.
             }
         }
 
@@ -373,21 +368,19 @@ namespace System
         {
             foreach (object item in enumerable)
             {
-                if (item is IAsyncDisposable asyncDisposableItem && !_disposedObjects.Contains(item))
+                if (item is not IAsyncDisposable asyncDisposableItem || _disposedObjects.Contains(item)) continue;
+                try
                 {
-                    try
-                    {
-                        await asyncDisposableItem.DisposeAsync(); // Asynchronously dispose the item.
-                    }
-                    catch (Exception e)
-                    {
-                        if (!_ignoreExceptions)
-                            throw new InvalidOperationException($"Failed to dispose item in collection {source}: {e}", e);
-                    }
-                    finally
-                    {
-                        _disposedObjects.Add(item); // Mark as disposed.
-                    }
+                    await asyncDisposableItem.DisposeAsync(); // Asynchronously dispose the item.
+                }
+                catch (Exception e)
+                {
+                    if (!_ignoreExceptions)
+                        throw new InvalidOperationException($"Failed to dispose item in collection {source}: {e}", e);
+                }
+                finally
+                {
+                    _disposedObjects.Add(item); // Mark as disposed.
                 }
             }
         }
