@@ -178,6 +178,11 @@ namespace System
                     case IDisposable disposable:
                         disposable.Dispose();
                         return;
+
+                    // Dispose items in collection.
+                    case IEnumerable enumerable:
+                        DisposeEnumerable(enumerable, source);
+                        return;
                 }
             }
             catch (Exception e)
@@ -371,6 +376,11 @@ namespace System
                     // Dispose the resource.
                     case IDisposable disposable:
                         disposable.Dispose(); 
+                        return;
+
+                    // Dispose items in collection.
+                    case IEnumerable enumerable:
+                        await DisposeEnumerableAsync(enumerable, source);
                         return;
                 }
             }
