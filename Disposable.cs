@@ -111,10 +111,14 @@ namespace System
         private void DisposeProperties()
         {
             Type type = GetType();
-            List<PropertyInfo> properties = type
-                .GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                .Where(prop => prop.CanRead) // Only include readable properties.
-                .ToList();
+
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            PropertyInfo[] properties =
+            (
+                from prop in type.GetProperties(flags)
+                where prop.CanRead // Only include readable properties.
+                select prop
+            ).ToArray();
 
             foreach (PropertyInfo property in properties)
             {
@@ -304,10 +308,13 @@ namespace System
         private async Task DisposePropertiesAsync()
         {
             Type type = GetType();
-            List<PropertyInfo> properties = type
-                .GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                .Where(prop => prop.CanRead) // Only include readable properties.
-                .ToList();
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            PropertyInfo[] properties =
+            (
+                from prop in type.GetProperties(flags)
+                where prop.CanRead // Only include readable properties.
+                select prop
+            ).ToArray();
 
             foreach (PropertyInfo property in properties)
             {
