@@ -68,6 +68,15 @@ namespace System
             set => _ignoreExceptions = value;
         }
 
+        /// <summary>
+        /// Marks an object as disposed, so it will be skipped by the <see cref="Dispose"/> and <see cref="DisposeAsync"/> methods.
+        /// </summary>
+        /// <param name="obj">The object to mark as disposed.</param>
+        protected void MarkAsDisposed(object obj)
+        {
+            _disposedObjects.Add(obj);
+        }
+
         #region Synchronous Methods
 
         /// <summary>
@@ -201,7 +210,7 @@ namespace System
         {
             foreach (object item in enumerable)
             {
-                if (item == null || _disposedObjects.Contains(item)) 
+                if (item == null || _disposedObjects.Contains(item))
                     continue;
 
                 try
@@ -375,7 +384,7 @@ namespace System
 
                     // Dispose the resource.
                     case IDisposable disposable:
-                        disposable.Dispose(); 
+                        disposable.Dispose();
                         return;
 
                     // Dispose items in collection.
