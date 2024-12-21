@@ -47,8 +47,8 @@ class Program
 ```
 
 ## Constructor & Property
-**Constructor:** The constructor allows you to specify whether exceptions thrown during the disposal process should be ignored. By default, exceptions are thrown if disposal fails.
-**IgnoreExceptions:** This public property lets you modify the exception handling behavior at runtime, toggling whether exceptions will be ignored or not during disposal.
+**Constructor:** The constructor allows you to specify whether exceptions thrown during the disposal process should be ignored. By default, exceptions are thrown if disposal fails.  
+**IgnoreExceptions:** This public property lets you modify the exception handling behavior at runtime, toggling whether exceptions will be ignored or not during disposal.  
 
 ## Advantages
 1. **Automatic disposal:** Automatically handles the disposal of all IDisposable properties and fields, ensuring that resources are properly cleaned up.
