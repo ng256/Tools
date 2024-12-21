@@ -192,12 +192,26 @@ namespace System
         {
             foreach (object item in enumerable)
             {
-                if (item is not IDisposable disposableItem || _disposedObjects.Contains(item)) 
+                if (item == null || _disposedObjects.Contains(item)) 
                     continue;
 
                 try
                 {
-                    disposableItem.Dispose(); // Dispose the item.
+                    switch (item)
+                    {
+                        // Asynchronously dispose the item.
+                        case IAsyncDisposable asyncDisposable:
+                            asyncDisposable.DisposeAsync()
+                                .AsTask()
+                                .GetAwaiter()
+                                .GetResult();
+                            continue;
+
+                        // Dispose the item.
+                        case IDisposable disposable:
+                            disposable.Dispose();
+                            continue;
+                    }
                 }
                 catch (Exception e)
                 {
@@ -368,10 +382,23 @@ namespace System
         {
             foreach (object item in enumerable)
             {
-                if (item is not IAsyncDisposable asyncDisposableItem || _disposedObjects.Contains(item)) continue;
+                if (item == null || _disposedObjects.Contains(item))
+                    continue;
+
                 try
                 {
-                    await asyncDisposableItem.DisposeAsync(); // Asynchronously dispose the item.
+                    switch (item)
+                    {
+                        // Asynchronously dispose the item.
+                        case IAsyncDisposable asyncDisposable:
+                            await asyncDisposable.DisposeAsync();
+                            continue;
+
+                        // Dispose the item.
+                        case IDisposable disposable:
+                            disposable.Dispose();
+                            continue;
+                    }
                 }
                 catch (Exception e)
                 {
@@ -391,7 +418,7 @@ namespace System
         /// </summary>
         protected virtual Task ClearManagedResourcesAsync()
         {
-            // Custom logic for clearing managed resources should go here.
+            // TODO: Derived classes must implement custom logic for cleaning up managed resources.
 
             return Task.CompletedTask;
         }
@@ -402,7 +429,7 @@ namespace System
         /// </summary>
         protected virtual Task ClearUnmanagedResourcesAsync()
         {
-            // Custom logic for clearing unmanaged resources should go here.
+            // TODO: Derived classes must implement custom logic for cleaning up unmanaged resources.
 
             return Task.CompletedTask;
         }
