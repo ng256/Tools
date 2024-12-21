@@ -1,11 +1,12 @@
 # Automatic IDisposable Base Class C# Implementation
 
-The **Disposable** class provides a robust implementation of the **IDisposable** pattern. It ensures that both managed and unmanaged resources are disposed of properly. It also automatically disposes properties and fields of the instance that implement IDisposable, making it a useful base class for objects that manage resources requiring explicit cleanup. To use this class, simply add *Disposable.cs* to your project. The class is implemented to support different versions of .NET, ensuring compatibility across various environments.
+The **Disposable** class provides a robust implementation of the **IDisposable** and **IAsyncDisposable** patterns. It ensures that both managed and unmanaged resources are disposed of properly. It also automatically disposes properties and fields of the instance that implement IDisposable, making it a useful base class for objects that manage resources requiring explicit cleanup. To use this class, simply add *Disposable.cs* to your project. The class is implemented to support different versions of .NET, ensuring compatibility across various environments.
 
 ## Key Features
 - **Automatic disposal:** The class automatically disposes of properties and fields that implement IDisposable when the Dispose method is called.
 - **Customizable exception handling:** The class provides an option to ignore exceptions during the disposal process.
 - **Dispose resources efficiently:** All resources are disposed of in an orderly manner, reducing the risk of resource leaks. The class is especially useful for automating resource management in objects that hold many resources that must be released after the object is deleted.
+- **Asynchronously working:** The class supports asynchronous disposal via the IAsyncDisposable interface, ensuring that resources are released efficiently even in asynchronous contexts. This feature is especially beneficial for managing asynchronous streams, network connections, or other I/O-bound resources, where asynchronous cleanup operations can improve performance and avoid blocking the main thread..
 
 ## Usage
 You can use this class as a base class for your own objects that manage resources. Here's how to implement and use it:
@@ -82,7 +83,48 @@ public class Program
     }
 }
 ```
+The **AsyncResource** class demonstrates the use of asynchronous resource disposal in C# with the **IAsyncDisposable** interface. The example creates a file and writes text using a **StreamWriter**. The asynchronous DisposeAsync method ensures proper resource cleanup by releasing them asynchronously. The code integrates the **Disposable** base class to support both synchronous and asynchronous cleanup operations.
+```csharp
+using System;
+using System.IO;
+using System.Threading.Tasks;
 
+public class AsyncResource : Disposable
+{
+    private StreamWriter _streamWriter;
+    public AsyncResource(string filePath) => _streamWriter = new StreamWriter(filePath);
+    public async Task WriteAsync(string data) => await _streamWriter.WriteLineAsync(data);
+
+    protected override async Task DisposeAsync(bool disposing)
+    {
+        if (disposing && _streamWriter != null)
+        {
+            await _streamWriter.DisposeAsync();
+            _streamWriter = null;
+        }
+        await base.DisposeAsync(disposing);
+    }
+
+    protected override void ClearManagedResources()
+    {
+        _streamWriter?.Dispose();
+        _streamWriter = null;
+        base.ClearManagedResources();
+    }
+}
+
+class Program
+{
+    static async Task Main()
+    {
+        string filePath = "example.txt";
+        await using (var resource = new AsyncResource(filePath))
+        {
+            await resource.WriteAsync("Hello, async world!");
+        }
+    }
+}
+```
 ## Constructor & Property
 **Constructor:** The constructor allows you to specify whether exceptions thrown during the disposal process should be ignored. By default, exceptions are thrown if disposal fails.  
 **IgnoreExceptions:** This public property lets you modify the exception handling behavior at runtime, toggling whether exceptions will be ignored or not during disposal.  
