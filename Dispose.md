@@ -16,8 +16,8 @@ public class MyResource : Disposable
 {
     public IDisposable Resource { get; set; }
 
-    public MyResource(bool ignoreExceptions = false) 
-        : base(ignoreExceptions)
+    public MyResource() 
+        : base(ignoreExceptions: false)
     {
         Resource = new SomeDisposableResource();
     }
