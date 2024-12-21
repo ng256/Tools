@@ -1,4 +1,4 @@
-# Automatic IDisposable Base Class Implementation
+# Automatic IDisposable Base Class C# Implementation
 
 The **Disposable** class provides a robust implementation of the **IDisposable** pattern. It ensures that both managed and unmanaged resources are disposed of properly. It also automatically disposes properties and fields of the instance that implement IDisposable, making it a useful base class for objects that manage resources requiring explicit cleanup. To use this class, simply add *Disposable.cs* to your project. The class is implemented to support different versions of .NET, ensuring compatibility across various environments.
 
@@ -10,27 +10,17 @@ The **Disposable** class provides a robust implementation of the **IDisposable**
 ## Usage
 You can use this class as a base class for your own objects that manage resources. Here's how to implement and use it:
 
-Example: Using the Disposable class
+The **MyResource** class uses the **Disposable** class in the simplest way.
 ```csharp
 public class MyResource : Disposable
 {
+    // A property that will be auto-desposed.
     public IDisposable Resource { get; set; }
 
     public MyResource() 
         : base(ignoreExceptions: false)
     {
         Resource = new SomeDisposableResource();
-    }
-
-    // Optionally, override Dispose to clean up any custom resources.
-    protected override void ClearManagedResources()
-    {
-        // Custom cleanup code if needed.
-    }
-
-    protected override void ClearUnmanagedResources()
-    {
-        // Custom unmanaged resource cleanup code if needed.
     }
 }
 
@@ -41,6 +31,52 @@ class Program
         using (var myResource = new MyResource())
         {
             // Use myResource here.
+        }
+    }
+}
+```
+
+The **CustomDisposableResource** class inherits from the Disposable base class and demonstrates how to override the **ClearManagedResources** and **ClearUnmanagedResources methods**. In this example, the managed resource is a **FileStream**, and the unmanaged resource is a pointer to a block of memory allocated using **Marshal.AllocHGlobal**. In the **ClearManagedResources** method, the **FileStream** is closed and set to null. In the **ClearUnmanagedResources** method, the unmanaged memory is freed using **Marshal.FreeHGlobal**. This ensures that both managed and unmanaged resources are properly cleaned up when the object is disposed.
+
+```csharp
+using System;
+using System.IO;
+
+public class CustomDisposableResource : Disposable
+{
+    private FileStream _fileStream;
+    private IntPtr _nativeResource;
+
+    public CustomDisposableResource(string filePath)
+        : base(true)
+    {
+        _fileStream = new FileStream(filePath, FileMode.OpenOrCreate);
+        _nativeResource = Marshal.AllocHGlobal(100);
+    }
+
+    protected override void ClearManagedResources()
+    {
+        _fileStream?.Close();
+        _fileStream = null;
+    }
+
+    protected override void ClearUnmanagedResources()
+    {
+        if (_nativeResource != IntPtr.Zero)
+        {
+            Marshal.FreeHGlobal(_nativeResource);
+            _nativeResource = IntPtr.Zero;
+        }
+    }
+}
+
+public class Program
+{
+    public static void Main()
+    {
+        using (CustomDisposableResource customResource = new CustomDisposableResource("example.txt"))
+        {
+            // Use customResource here.
         }
     }
 }
@@ -62,8 +98,8 @@ class Program
 2. **Misuse:** If you forget to call Dispose() in your code, unmanaged resources might not be released, leading to memory leaks. It is important to always use the class within a using block or ensure that Dispose() is called explicitly.
 3. **Hidden exceptions:** By choosing to ignore exceptions during disposal (**IgnoreExceptionsInCatch** = true), you may miss critical errors that could indicate problems in your resources or disposal logic.
 ## When to Use
-- Recommended: Use this class when you have objects that manage multiple resources and need to ensure that all IDisposable properties and fields are disposed of automatically. It is especially useful when dealing with complex objects that may require extensive cleanup, or when automating resource management in objects that hold many resources.
-- Not recommended: If your object does not manage disposable resources or if you want fine-grained control over the disposal of each resource, it might be better to implement the IDisposable pattern manually for each resource.
+- **Recommended:** Use this class when you have objects that manage multiple resources and need to ensure that all IDisposable properties and fields are disposed of automatically. It is especially useful when dealing with complex objects that may require extensive cleanup, or when automating resource management in objects that hold many resources.
+- **NOT recommended:** This class is not recommended for objects that are created and destroyed within loop iterations or other frequently executed code segments. In such cases, the overhead of the automatic resource disposal mechanism can negatively impact performance. Additionally, if your object does not manage resources requiring explicit disposal, or if you want more fine-grained control over the resource cleanup process, it may be better to implement the IDisposable pattern manually for each resource, giving you more control.
 
 ## Conclusion
 The Disposable class provides a powerful and convenient way to manage resources and ensure proper cleanup, following the **IDisposable** pattern. It simplifies the implementation of resource cleanup by automatically disposing of all disposable fields and properties. However, it should be used carefully to avoid hidden exceptions and unnecessary overhead in certain cases.
