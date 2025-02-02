@@ -1,0 +1,11 @@
+Google
+108.177.14.102 Web server google.com
+8.8.8.8 Public DNS
+
+Yandex
+5.255.255.242 Web server yandex.ru
+77.88.8.8 Public DNS1
+77.88.8.1 Public DNS2
+
+Localhost
+127.0.0.1 Self
