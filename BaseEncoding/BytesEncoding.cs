@@ -9,7 +9,7 @@
  *
  ***************************************************************/
 
-namespace System.Ini
+namespace System.Text
 {
     /// <summary>
     ///     Represents the different encoding styles that can be used to
