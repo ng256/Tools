@@ -1,0 +1,1 @@
+(?<=(?:public|internal|protected|private)\s+static\s+\w+\s+\w+\s*\()|(?<=(?:public|internal|protected|private)\s+static\s+\(.*\)\s*\w+\s*\()
