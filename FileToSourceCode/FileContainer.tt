@@ -1,0 +1,262 @@
+<#@ template debug="false" hostspecific="false" language="C#" #>
+<#@ assembly name="System.Windows.Forms" #>
+<#@ assembly name="System.Core" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Text" #>
+<#@ import namespace="System.IO" #>
+<#@ import namespace="System.IO.Compression" #>
+<#@ import namespace="System.Windows.Forms" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ output extension=".cs" #>
+<# 
+/***********************************************************************/
+// FileContainer generates className for file fileName
+/*********************** Filled in by the user *********************/
+
+// The name of the file to be represented as an array of bytes
+			string fileName = @"C:\windows\win.ini";
+
+// Line width (how many declarations of array elements per line) 
+			int width = 16;
+
+// Class name
+			string className = "WinIniFile";
+
+/************************************************************************/
+
+// Reading data from a file 
+byte[] bytes = File.ReadAllBytes(fileName);
+
+// Getting the length of original file 
+int length = bytes.Length;
+
+// Getting file name (no path)
+fileName = Path.GetFileName(fileName);
+
+// Generating a table for calculating CRC32
+uint[] table;
+uint poly = (uint) (new Random()).Next();
+table = new uint[256];
+uint temp = 0;
+for (uint i = 0; i < table.Length; ++i)
+{
+    temp = i;
+    for (int j = 8; j > 0; --j)
+    {
+        if ((temp & 1) == 1)
+        {
+            temp = (uint)((temp >> 1) ^ poly);
+        }
+        else
+        {
+            temp >>= 1;
+        }
+    }
+    table[i] = temp;
+}
+
+// Calculating the CRC32 checksum for the original data 
+uint crc = 0xffffffff;
+for(int i = 0; i < bytes.Length; ++i) 
+{
+    byte index = (byte)(((crc) & 0xff) ^ bytes[i]);
+    crc = (uint)((crc >> 8) ^ table[index]);
+}
+
+// Archiving the byte array 
+using (MemoryStream memory = new MemoryStream())
+{
+	using (GZipStream gZip = new GZipStream(memory, CompressionMode.Compress))
+	{
+		gZip.Write(bytes, 0, bytes.Length);
+	}
+	bytes = memory.ToArray();
+}
+#>
+/**************************************************************************************************
+  File: <#= className #>.cs
+  Class: <#= className #>
+  Description: The class contains the file <#= fileName #> compressed with GZip,
+  encrypted using primitive XOR encryption on a hash table,
+  it also provides methods for extracting this file. 
+	Created: <#= DateTime.Now.ToString("dd MMMM yyyy") #> г.
+***************************************************************************************************/
+
+using System.Text;
+using System.IO;
+using System.IO.Compression;
+
+namespace System
+{
+
+/// <summary>
+/// Represents the data of an archived file <#= fileName #>,
+/// and also provides methods to retrieve this data.
+/// </summary> 
+public static class <#= className #> 
+{
+
+	#region Const
+
+	// Original file name.
+	private const string FILE_NAME = @"<#= fileName #>";
+
+	// CRC32 value for  <#= fileName #>.
+	private const uint FILE_CRC32 = <#= $"0x{~crc:X}" #>;
+
+	// Hash table size.
+	private const int TABLE_SIZE = <#= $"{table.Length}" #>;
+
+	// Source file length in bytes.
+	private const int FILE_SIZE = <#= $"{length}" #>;
+
+	// Archive length in bytes.
+	private const int ARC_SIZE = <#= $"{bytes.Length}" #>;
+
+	// Compression ratio of the archive as a percentage of the original file size.
+	private const int ARC_RATIO = <#= $"{(100 / (length / (bytes.Length + table.Length)))}" #>;
+
+	#endregion
+
+	#region Properties
+
+	/// <summary>
+	/// Returns the file name.
+	/// </summary>
+	public static string FileName => FILE_NAME;
+
+	/// <summary>
+	/// Returns the CRC32 checksum calculated for the file <#= fileName #>.
+	/// </summary>
+	public static uint CheckSum => FILE_CRC32;
+
+	/// <summary>
+	/// Returns the size of the file <#= fileName #> in bytes. 
+	/// </summary>
+	public static int Length => FILE_SIZE;
+
+	/// <summary>
+	/// Returns the archive size in bytes.
+	/// </summary>
+	public static int ArcLength => ARC_SIZE;
+
+	/// <summary>
+	/// Returns the compression ratio of the archive (as a percentage of the size of the original file).
+	/// </summary>
+	public static int Ratio => ARC_RATIO;
+
+	#endregion
+
+	#region Methodes
+
+  /// <summary>
+  /// Extract the file <#= fileName #> and saves it to a file at the specified path.
+  /// </summary>
+  /// <param name = "filePath">
+  /// Path to save file <#= fileName #>.
+  /// </param> 
+	public static void WriteFile(string filePath)
+	{
+		using (MemoryStream memory = new MemoryStream(_Xor(_bytes)))
+		{
+			using (GZipStream gZip = new GZipStream(memory, CompressionMode.Decompress))
+			{
+				using (FileStream file = File.OpenWrite(filePath))
+				{
+					gZip.CopyTo(file);
+				}
+			}
+		}
+	}
+
+  /// <summary>
+  /// Extract the file <#= fileName #> and returns it as a byte array.
+  /// </summary>
+  /// <returns>
+  /// A byte array containing the unpacked file <#= fileName #>.
+  /// </returns> 
+	public static byte[] GetBytes()
+	{
+		using (MemoryStream memory = new MemoryStream(_Xor(_bytes)))
+		{
+			using (GZipStream gZip = new GZipStream(memory, CompressionMode.Decompress))
+			{
+				using (MemoryStream result = new MemoryStream())
+				{
+					gZip.CopyTo(result);
+					return result.ToArray();
+				}
+			}
+		}
+	}
+
+  /// <summary>
+  /// Extract file <#= fileName #> as a string.
+  /// </summary>
+  /// <returns>
+  /// A string containing the unpacked file <#= fileName #>.
+  /// </returns> 
+	public static string GetString(Encoding encoding = Encoding.UTF8)
+	{
+		return (encoding ?? Encoding.UTF8).GetString(GetBytes());
+	}
+
+  /// <summary>
+  /// Checks if the specified array matches
+  /// data from file <#= fileName #>.
+  /// </summary>
+  /// <returns>
+  /// True if the checksums of the array <#= fileName #> match.
+  /// </returns> 
+	public static bool CheckBytes(byte[] bytes) 
+	{
+		if (bytes.Length != FILE_SIZE) return false;
+		uint crc = uint.MaxValue;
+		int max = TABLE_SIZE - 1;
+		for (int i = 0; i < bytes.Length; ++i) 
+		{
+			byte index = (byte)(((crc) & max) ^ bytes[i]);
+			crc = (uint)((crc >> 8) ^ _table[index]);
+		}
+		return ~crc == FILE_CRC32;
+	}
+
+	// Decrypts an array by XORing with the hash table.
+	private static byte[] _Xor(byte[] bytes)
+	{
+		int length = bytes.Length;
+		byte[] result = new byte[length];
+		int j = 0;
+		for(int i = 0; i < length; i++)
+		{
+			byte b = bytes[i];
+			result[i] = Convert.ToByte(b ^ (byte) _table[j++]);
+			if (j == TABLE_SIZE) j = 0;
+		}
+		return result;
+	}
+
+	#endregion
+
+	#region Data
+
+	// Contains compressed & encrypted data ot the file <#= fileName #>.
+	private static readonly byte[] _bytes = new byte[] 
+	{
+<#= "\r\n\t\t"#><# int k = 0; for (int i = 0; i < bytes.Length; i++) 
+{ byte b = bytes[i]; #>
+<#= $"0x{(b^(byte)table[k++]):X2}"#><#if (i < bytes.Length - 1) { #>
+<#= ", "#><#}#><# if ((i + 1) % width == 0 && i < bytes.Length-1){#>
+<#= "\r\n\t\t"#><# } if (k == table.Length) k = 0; }#>
+<#= "\r\n\r\n\t"#>};
+
+	// Contains a hash table for decrypting the array and calculating the CRC32 checksum.
+	private static readonly uint[] _table = new uint[] 
+	{
+	<# for (int i = 0; i < table.Length; i++) { uint b = table[i];  #>
+	<#= $"0x{b:X8}"#><#if (i < table.Length - 1) { #><#= ","#><#}#>
+	<# if ((i + 1) % 4 == 0 && i < table.Length - 1){#><#= "\r\n\t"#><#}#><#}#>
+	<#= "\r\n\t"#>};
+
+	#endregion
+}}
