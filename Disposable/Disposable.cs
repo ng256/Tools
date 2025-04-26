@@ -38,6 +38,7 @@
 
 using System.Collections;
 using System.Reflection;
+using System.Reflection.Emit;
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
 
 namespace System
@@ -512,5 +513,69 @@ namespace System
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// Extension methods for Disposable to facilitate automatic registration of disposable objects.
+    /// </summary>
+    public static class DisposableExtensions
+    {
+        // Static delegate for fast call
+        private static readonly Action<Disposable, object> _fastRegister;
+
+        static DisposableExtensions()
+        {
+            // Initialize dynamic method once
+            var disposableType = typeof(Disposable);
+            var markAsDisposedMethod = disposableType.GetMethod(
+                "MarkAsDisposed",
+                BindingFlags.NonPublic | BindingFlags.Instance,
+                null,
+                new Type[] { typeof(object) },
+                null);
+
+            if (markAsDisposedMethod == null)
+            {
+                throw new InvalidOperationException("Disposable must have a non-public instance method 'MarkAsDisposed(object)'.");
+            }
+
+            var dynamicMethod = new DynamicMethod(
+                "FastRegister",
+                typeof(void),
+                new Type[] { typeof(Disposable), typeof(object) },
+                disposableType,
+                true);
+
+            ILGenerator il = dynamicMethod.GetILGenerator();
+
+            // Emit IL code:
+            // (Disposable owner, object disposable) => owner.MarkAsDisposed(disposable);
+
+            il.Emit(OpCodes.Ldarg_0); // Load owner
+            il.Emit(OpCodes.Ldarg_1); // Load disposable
+            il.Emit(OpCodes.Call, markAsDisposedMethod); // Call MarkAsDisposed
+            il.Emit(OpCodes.Ret); // Return
+
+            _fastRegister = (Action<Disposable, object>)dynamicMethod.CreateDelegate(typeof(Action<Disposable, object>));
+        }
+
+        /// <summary>
+        /// Registers the disposable object inside the owner Disposable class.
+        /// </summary>
+        /// <typeparam name="T">Type of the disposable object.</typeparam>
+        /// <param name="owner">Owner disposable instance.</param>
+        /// <param name="disposable">Disposable object to register.</param>
+        /// <returns>The same disposable object for chaining.</returns>
+        public static T RegisterDisposable<T>(this Disposable owner, T disposable)
+            where T : class
+        {
+            if (owner == null)
+                throw new ArgumentNullException(nameof(owner));
+            if (disposable == null)
+                throw new ArgumentNullException(nameof(disposable));
+
+            _fastRegister(owner, disposable);
+            return disposable;
+        }
     }
 }
