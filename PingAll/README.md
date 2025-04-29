@@ -1,39 +1,86 @@
-# Overview
-A small batch file that allows you to ping grouped lists of IP addresses from text files<br />
-Reads addresses from the file specified on the command line or from the default file (ip.txt).<br />
-## Screenshot
-![image](https://github.com/ng256/pingall/assets/90511962/77bddb3a-48e7-45c3-97cb-782cdd4772a6)
+# Ping All
 
-## Usage
-**pingall** <br /> _Reads the data from ip.txt_<br /> 
-**pingall** myfile.txt <br /> _Reads the data from specified myfile.txt_<br />
+This script, __pingall.bat__, allows you to check the availability of hosts or IP addresses using the ping command. It provides a simple text-based list input and uses ANSI color codes for better readability.
 
-## Structure of text file
-;Commentary<br />
-Group_name<br />
-ip description<br />
-## Default file ip.txt
-**Google**<br />
-108.177.14.102 Web server google.com<br />
-8.8.8.8 Public DNS<br />
+## 📄 Description
 
-**Yandex**<br />
-5.255.255.242 Web server yandex.ru<br />
-77.88.8.8 Public DNS1<br />
-77.88.8.1 Public DNS2<br />
+The script reads lines from a file (default: ip.txt in the same folder), interpreting each line as:
 
-**Localhost**<br />
-127.0.0.1 Self<br />
-## Example of myfile.txt
-_;My local network_<br />
-**Home_net**<br />
-192.168.0.1 router<br />
-192.168.0.2 my computer<br />
-192.168.0.3 printer<br />
+```
+; Comment
+<IP> <description> [optional note]
+```
 
-_;Public DNS Server List_<br />
-**DNS**<br />
-204.106.240.53 dns3.dmcibb.net<br />
-170.64.147.31 ns2.seolizer.de<br />
+Lines starting with ; are ignored.
 
+If only one word is provided, it is considered a title.
 
+Colored output enhances visibility:
+
+🟢 Green: host is online.
+
+🔴 Red: host is offline.
+
+🟡 Yellow: descriptive text.
+
+## 🧠 How It Works
+
+Written in pure cmd.exe batch language, this script utilizes ANSI escape codes for colorized terminal output.
+
+Key Functions
+
+:setEsc — extracts the ESC character using a trick with prompt.
+
+:iter — parses each line: either a title or an IP with a label.
+
+:doPing — performs a quick ping and prints the result with a status color.
+
+:title — prints a highlighted section title.
+
+📦 Input File Format (ip.txt)
+
+Example:
+```
+; this is a comment
+SERVERS
+
+192.168.1.1 Router
+192.168.1.100 NAS
+192.168.1.200 DB Server
+
+CAMERAS
+
+192.168.1.201 Camera #1
+192.168.1.202 Camera #2
+```
+## 📌 Running the Script
+```
+pingall.bat ip.txt
+```
+If no argument is given, ip.txt is used from the script's folder.
+
+🖌 ANSI Colors
+
+- ESC[33m — yellow (description)
+
+- ESC[92m — green (online)
+
+- ESC[91m — red (offline)
+
+- ESC[4;41;93m — section title (underlined, red background)
+
+## 🛠 Compatibility
+
+Windows 10 and newer (ANSI escape codes enabled by default)
+
+Older versions may require enabling ANSI via registry or third-party tools.
+
+## ⚠️ Limitations
+
+No parallel pings — checks are performed sequentially.
+
+No logging or advanced diagnostics.
+
+## 📚 License
+
+MIT License
