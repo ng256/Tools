@@ -15,7 +15,7 @@ using static System.InternalTools;
 
 namespace System.Text
 {
-  internal abstract class BaseEncoding : Encoding
+  public abstract class BaseEncoding : Encoding
   {
     protected BaseEncoding(int codePage)
       : base(codePage)
