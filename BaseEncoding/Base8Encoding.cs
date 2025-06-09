@@ -7,20 +7,38 @@
     Base8Encoding is designed to work with octal data and
     implements methods for encoding and decoding data.
 
-•   Copyright
 
-    © Pavel Bashkardin, 2022-2024
+•   MIT License
+
+    Copyright © Pavel Bashkardin, 2024
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
 
 ***************************************************************/
-
-using static System.InternalTools;
 
 namespace System.Text
 {
     internal sealed class Base8Encoding : BaseEncoding
     {
         // Returns the name of the encoding
-        public override string EncodingName => "base-8";
+        public override string EncodingName => "octal";
 
         // Initialize a new instance of the Base8Encoding.
         public Base8Encoding()
@@ -92,7 +110,7 @@ namespace System.Text
         {
             if (digit >= 0x31 && digit <= 0x37)
                 return digit - 0x30;
-            throw new ArgumentOutOfRangeException(nameof(digit), digit, GetResourceString("Format_BadBase"));
+            throw BadBaseException(digit);
         }
 
         // Converts an integer value to its corresponding octal character.
