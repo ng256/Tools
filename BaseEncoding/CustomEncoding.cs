@@ -1,37 +1,35 @@
-﻿/******************************************************************
+﻿/***************************************************************************************
 
 • File: CustomEncoding.cs
 
 • Description:
 
-    Provides the abstract base class for custom binary-to-text 
-    encoding implementations using configurable alphabets.
-    Defines core functionality including alphabet validation, 
-    leading zero handling, and common conversion infrastructure.
+    Provides the abstract base class for custom binary-to-text encoding implementations 
+    using configurable alphabets. Defines core functionality including alphabet 
+    validation, leading zero handling, and common conversion infrastructure.
 
-• MIT License
+•   MIT License
 
-    Copyright © Pavel Bashkardin, 2024
+Copyright © Pavel Bashkardin, 2024
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
+Permission  is  hereby  granted,  free  of  charge,  to  any  person  obtaining  a  copy
+of  this  software  and  associated  documentation  files  (the  "Software"),  to  deal
+in  the  Software  without  restriction,  including  without  limitation  the  rights to
+use,  copy,  modify,  merge,  publish,  distribute,  sublicense,  and/or  sell copies of
+the  Software,  and  to  permit  persons  to  whom  the  Software  is  furnished  to  do
+so, subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
+The  above  copyright  notice  and  this  permission  notice  shall  be  included in all
+copies or substantial portions of the Software.
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
+THE  SOFTWARE  IS  PROVIDED  "AS  IS",  WITHOUT  WARRANTY  OF  ANY  KIND,  EXPRESS   OR
+IMPLIED,  INCLUDING  BUT  NOT  LIMITED  TO  THE  WARRANTIES  OF  MERCHANTABILITY, FITNESS
+FOR  A  PARTICULAR  PURPOSE  AND  NONINFRINGEMENT.  IN  NO  EVENT  SHALL  THE  AUTHORS OR
+COPYRIGHT  HOLDERS  BE  LIABLE  FOR  ANY  CLAIM,  DAMAGES  OR  OTHER  LIABILITY,  WHETHER
+IN  AN  ACTION  OF  CONTRACT,  TORT  OR  OTHERWISE,  ARISING  FROM,  OUT  OF  OR   IN
+CONNECTION  WITH  THE  SOFTWARE  OR  THE  USE  OR  OTHER  DEALINGS  IN  THE  SOFTWARE.
 
-******************************************************************/
+****************************************************************************************/
 
 using System.Globalization;
 
@@ -63,6 +61,10 @@ namespace System.Text
 
             foreach (char c in chars)
             {
+                // Nul character.
+                if (c == 0)
+                    return true;
+
                 // Process ASCII range.
                 if (c <= 0x7F)
                 {
@@ -70,7 +72,8 @@ namespace System.Text
                     if (c <= 0x20 || c == 0x7F)
                         return true;
                 }
-                // Process non-ASCII range.
+
+                // Process Unicode range.
                 else
                 {
                     // C1 control characters (128-159).
@@ -164,8 +167,13 @@ namespace System.Text
         protected CustomEncoding(char[] alphabet) : this()
         {
             // Validate alphabet input.
-            if (alphabet == null || alphabet.Length == 0)
-                throw new ArgumentException("Alphabet must not be empty");
+            if (alphabet == null)
+                throw new ArgumentNullException("Alphabet cannot be null");
+            if (alphabet == null || alphabet.Length < 2)
+                throw new ArgumentException("Alphabet must have at least 2 characters");
+            if (alphabet.Length > 0x10000)
+                throw new ArgumentException("Alphabet size exceeds Unicode character limit");
+
 
             // Reject unprintable characters.
             if (HasUnprintableChars(alphabet))
@@ -174,9 +182,6 @@ namespace System.Text
             // Reject duplicate characters.
             if (HasDuplicateChars(alphabet))
                 throw new ArgumentException("Alphabet contains duplicate characters");
-
-            if (alphabet.Length > 0x10000)
-                throw new ArgumentException("Alphabet size exceeds Unicode character limit");
 
             // Create a defensive copy of the alphabet.
             int length = alphabet.Length;

@@ -1,36 +1,34 @@
-﻿/***************************************************************
+﻿/***************************************************************************************
 
 • File: Base64Encoding.cs
 
 • Description:
 
-    Base64Encoding implements methods for encoding and decoding
-    data using Base64 encoding. To make the text easier to read,
-    the trailing symbol '=' were removed.
+    Base64Encoding implements methods for encoding and decoding data using Base64 
+    encoding. To make the text easier to read, the trailing symbol '=' were removed.
 
-• MIT License
+•   MIT License
 
-    Copyright © Pavel Bashkardin, 2024
+Copyright © Pavel Bashkardin, 2024
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
+Permission  is  hereby  granted,  free  of  charge,  to  any  person  obtaining  a  copy
+of  this  software  and  associated  documentation  files  (the  "Software"),  to  deal
+in  the  Software  without  restriction,  including  without  limitation  the  rights to
+use,  copy,  modify,  merge,  publish,  distribute,  sublicense,  and/or  sell copies of
+the  Software,  and  to  permit  persons  to  whom  the  Software  is  furnished  to  do
+so, subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
+The  above  copyright  notice  and  this  permission  notice  shall  be  included in all
+copies or substantial portions of the Software.
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
+THE  SOFTWARE  IS  PROVIDED  "AS  IS",  WITHOUT  WARRANTY  OF  ANY  KIND,  EXPRESS   OR
+IMPLIED,  INCLUDING  BUT  NOT  LIMITED  TO  THE  WARRANTIES  OF  MERCHANTABILITY, FITNESS
+FOR  A  PARTICULAR  PURPOSE  AND  NONINFRINGEMENT.  IN  NO  EVENT  SHALL  THE  AUTHORS OR
+COPYRIGHT  HOLDERS  BE  LIABLE  FOR  ANY  CLAIM,  DAMAGES  OR  OTHER  LIABILITY,  WHETHER
+IN  AN  ACTION  OF  CONTRACT,  TORT  OR  OTHERWISE,  ARISING  FROM,  OUT  OF  OR   IN
+CONNECTION  WITH  THE  SOFTWARE  OR  THE  USE  OR  OTHER  DEALINGS  IN  THE  SOFTWARE.
 
-***************************************************************/
+****************************************************************************************/
 
 namespace System.Text
 {
@@ -102,7 +100,9 @@ namespace System.Text
             // Process the characters in blocks of 4 and convert them into 3 bytes.
             while (charIndex < endCharIndex)
             {
-                uint value = (uint)GetValue(chars[charIndex++]);
+                char c = chars[charIndex++];
+                if (c == '=') continue;
+                uint value = (uint)GetValue(c);
                 block = block << 6 | value;
 
                 if ((block & 0x80000000U) != 0)
@@ -136,22 +136,22 @@ namespace System.Text
         // Converts a value to its corresponding Base64 character.
         public char GetDigit(int value)
         {
-            if (value < 0x1A) return (char)(value + 0x41);
-            if (value < 0x34) return (char)(value + 0x47);
-            if (value < 0x3E) return (char)(value - 0x04);
-            if (value == 0x3E) return (char)0x2B;
-            if (value == 0x3F) return (char)0x2F;
-            return (char)0x3D;
+            if (value < 0x1A) return (char)(value + 'A');               // 0x1A = 26
+            if (value < 0x34) return (char)(value + 'a' - 0x1A);        // 0x34 = 52
+            if (value < 0x3E) return (char)(value - 0x34 + '0');        // 0x3E = 62
+            if (value == 0x3E) return '+';                              // 62
+            if (value == 0x3F) return '/';                              // 63
+            return '=';                                                 // padding
         }
 
         // Converts a Base64 character to its corresponding value.
         private int GetValue(char digit)
         {
-            if (digit < 0x5B && digit > 0x40) return digit - 0x41;
-            if (digit < 0x7B && digit > 0x60) return digit - 0x47;
-            if (digit < 0x3A && digit > 0x2F) return digit + 0x04;
-            if (digit == 0x2B) return 0x3E;
-            if (digit == 0x2F) return 0x3F;
+            if (digit >= 'A' && digit <= 'Z') return digit - 'A';        // 'A'..'Z' → 0..25
+            if (digit >= 'a' && digit <= 'z') return digit - 'a' + 0x1A; // 'a'..'z' → 26..51
+            if (digit >= '0' && digit <= '9') return digit - '0' + 0x34; // '0'..'9' → 52..61
+            if (digit == '+') return 0x3E;                               // '+'
+            if (digit == '/') return 0x3F;                               // '/'
             throw BadBaseException(digit);
         }
 
@@ -170,7 +170,7 @@ namespace System.Text
         // Calculates the maximum number of bytes needed to encode a given number of characters.
         public override int GetMaxByteCount(int charCount)
         {
-            return (charCount * 3) >> 2;
+            return ((charCount << 1) + charCount) >> 2;
         }
 
         // Calculates the maximum number of characters needed to decode a given number of bytes.

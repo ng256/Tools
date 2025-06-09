@@ -1,74 +1,103 @@
-﻿/***************************************************************
-• File: BaseEncoding.cs
+﻿/***************************************************************************************
+
+•  File: BaseEncoding.cs
 
 • Description:
 
-    It is an abstract class BaseEncoding, which is a descendant 
-    of the Encoding class for creating various encodings.
+It  is  an  abstract  class  BaseEncoding,  which  is  a  descendant  of  the  Encoding
+class for creating various encodings.
 
-• MIT License
+•   MIT License
 
-    Copyright © Pavel Bashkardin, 2024
+Copyright © Pavel Bashkardin, 2024
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
+Permission  is  hereby  granted,  free  of  charge,  to  any  person  obtaining  a  copy
+of  this  software  and  associated  documentation  files  (the  "Software"),  to  deal
+in  the  Software  without  restriction,  including  without  limitation  the  rights to
+use,  copy,  modify,  merge,  publish,  distribute,  sublicense,  and/or  sell copies of
+the  Software,  and  to  permit  persons  to  whom  the  Software  is  furnished  to  do
+so, subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
+The  above  copyright  notice  and  this  permission  notice  shall  be  included in all
+copies or substantial portions of the Software.
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
+THE  SOFTWARE  IS  PROVIDED  "AS  IS",  WITHOUT  WARRANTY  OF  ANY  KIND,  EXPRESS   OR
+IMPLIED,  INCLUDING  BUT  NOT  LIMITED  TO  THE  WARRANTIES  OF  MERCHANTABILITY, FITNESS
+FOR  A  PARTICULAR  PURPOSE  AND  NONINFRINGEMENT.  IN  NO  EVENT  SHALL  THE  AUTHORS OR
+COPYRIGHT  HOLDERS  BE  LIABLE  FOR  ANY  CLAIM,  DAMAGES  OR  OTHER  LIABILITY,  WHETHER
+IN  AN  ACTION  OF  CONTRACT,  TORT  OR  OTHERWISE,  ARISING  FROM,  OUT  OF  OR   IN
+CONNECTION  WITH  THE  SOFTWARE  OR  THE  USE  OR  OTHER  DEALINGS  IN  THE  SOFTWARE.
 
-***************************************************************/
+****************************************************************************************/
 
 namespace System.Text
 {
-    // BaseEncoding is an abstract class that serves as a base for various encoding implementations.
+    /// <summary>
+    /// Represents the base class for custom base encodings (e.g., Base32, Base64).
+    /// Inherits from <see cref="Encoding"/> and provides factory methods and utility logic.
+    /// </summary>
     public abstract class BaseEncoding : Encoding
     {
-        // Constructor for BaseEncoding that takes a code page.
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BaseEncoding"/> class with the specified code page.
+        /// </summary>
+        /// <param name="codePage">The code page identifier for the encoding.</param>
         protected BaseEncoding(int codePage) : base(codePage)
         {
         }
 
-        // Factory method to get an encoding based on the provided alphabet.
+        /// <summary>
+        /// Returns a <see cref="BaseEncoding"/> instance that corresponds to the provided custom alphabet.
+        /// </summary>
+        /// <param name="alphabet">A string representing the alphabet used for encoding.</param>
+        /// <returns>
+        /// An instance of <see cref="CustomEncoding"/>, depending on the alphabet length.
+        /// </returns>
         public static new BaseEncoding GetEncoding(string alphabet)
         {
+            ArgumentNullException.ThrowIfNull(alphabet);
+
             return alphabet.Length > CustomEncodingSmall.MAX_BASE
                 ? new CustomEncodingBig(alphabet)
                 : new CustomEncodingSmall(alphabet);
         }
 
-        // Factory method to get an encoding based on the specified encoding style.
-        public static BaseEncoding GetEncoding(BasesEncodingStyle encoding)
+        /// <summary>
+        /// Returns a <see cref="BaseEncoding"/> instance corresponding to the specified <see cref="BaseEncodingStyle"/>.
+        /// </summary>
+        /// <param name="encoding">The desired base encoding style.</param>
+        /// <returns>
+        /// A concrete implementation of <see cref="BaseEncoding"/> such as <see cref="Base32Encoding"/>, <see cref="Base64Encoding"/>, etc.
+        /// </returns>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when the encoding style is not supported.</exception>
+        public static BaseEncoding GetEncoding(BaseEncodingStyle encoding)
         {
             switch (encoding)
             {
-                case BasesEncodingStyle.Binary:
+                case BaseEncodingStyle.Binary:
                     return new Base2Encoding();
-                case BasesEncodingStyle.Octal:
+                case BaseEncodingStyle.Octal:
                     return new Base8Encoding();
-                case BasesEncodingStyle.Hexadecimal:
+                case BaseEncodingStyle.Hexadecimal:
                     return new Base16Encoding();
-                case BasesEncodingStyle.Base32:
+                case BaseEncodingStyle.Base32:
                     return new Base32Encoding();
-                case BasesEncodingStyle.Base64:
+                case BaseEncodingStyle.Base64:
                     return new Base64Encoding();
                 default:
                     throw new ArgumentOutOfRangeException(nameof(encoding), encoding, null);
             }
         }
 
-        // Abstract method to encode a character array into a byte array.
+        /// <summary>
+        /// When overridden in a derived class, encodes a set of characters from the specified character array into a sequence of bytes.
+        /// </summary>
+        /// <param name="chars">The character array containing the characters to encode.</param>
+        /// <param name="charIndex">The index of the first character to encode.</param>
+        /// <param name="charCount">The number of characters to encode.</param>
+        /// <param name="bytes">The byte array to contain the resulting sequence of bytes.</param>
+        /// <param name="byteIndex">The index at which to start writing the resulting bytes.</param>
+        /// <returns>The actual number of bytes written to the output array.</returns>
         public override int GetBytes(char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex)
         {
             ValidateInput(chars, charIndex, charCount);
@@ -77,7 +106,15 @@ namespace System.Text
             return 0; // This method should be overridden to implement actual encoding logic.
         }
 
-        // Abstract method to decode a byte array into a character array.
+        /// <summary>
+        /// When overridden in a derived class, decodes a sequence of bytes from the specified byte array into a set of characters.
+        /// </summary>
+        /// <param name="bytes">The byte array containing the sequence of bytes to decode.</param>
+        /// <param name="byteIndex">The index of the first byte to decode.</param>
+        /// <param name="byteCount">The number of bytes to decode.</param>
+        /// <param name="chars">The character array to contain the resulting characters.</param>
+        /// <param name="charIndex">The index at which to start writing the resulting characters.</param>
+        /// <returns>The actual number of characters written to the output array.</returns>
         public override int GetChars(byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex)
         {
             ValidateInput(bytes, byteIndex, byteCount);
@@ -86,7 +123,13 @@ namespace System.Text
             return 0; // This method should be overridden to implement actual decoding logic.
         }
 
-        // Calculates the number of bytes needed to encode a character array.
+        /// <summary>
+        /// Calculates the number of bytes produced by encoding a set of characters from the specified character array.
+        /// </summary>
+        /// <param name="chars">The character array containing the characters to encode.</param>
+        /// <param name="index">The index of the first character to encode.</param>
+        /// <param name="count">The number of characters to encode.</param>
+        /// <returns>The number of bytes required to encode the specified characters.</returns>
         public override int GetByteCount(char[] chars, int index, int count)
         {
             ValidateInput(chars, index, count);
@@ -94,7 +137,13 @@ namespace System.Text
             return GetMaxByteCount(GetMaxCount(chars, index, count));
         }
 
-        // Calculates the number of characters needed to decode a byte array.
+        /// <summary>
+        /// Calculates the number of characters produced by decoding a sequence of bytes from the specified byte array.
+        /// </summary>
+        /// <param name="bytes">The byte array containing the bytes to decode.</param>
+        /// <param name="index">The index of the first byte to decode.</param>
+        /// <param name="count">The number of bytes to decode.</param>
+        /// <returns>The number of characters required to decode the specified bytes.</returns>
         public override int GetCharCount(byte[] bytes, int index, int count)
         {
             ValidateInput(bytes, index, count);
@@ -102,7 +151,16 @@ namespace System.Text
             return GetMaxCharCount(GetMaxCount(bytes, index, count));
         }
 
-        // Calculates the number of characters that can be obtained from a byte array.
+        /// <summary>
+        /// Calculates the number of characters that can be obtained by decoding the specified byte array segment.
+        /// This method can be overridden by derived classes to customize decoding logic.
+        /// </summary>
+        /// <param name="chars">The character array into which the result will be decoded.</param>
+        /// <param name="charIndex">The starting index in the character array.</param>
+        /// <param name="charCount">The number of characters to use in the array.</param>
+        /// <param name="bytes">The byte array containing the encoded data.</param>
+        /// <param name="byteIndex">The starting index in the byte array.</param>
+        /// <returns>The estimated number of characters resulting from decoding the byte data.</returns>
         protected virtual int GetCharCount(char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex)
         {
             ValidateInput(chars, charIndex, charCount);
@@ -112,7 +170,16 @@ namespace System.Text
             return Math.Min(GetMaxCount(chars, charIndex, charCount), maxCharCount);
         }
 
-        // Calculates the number of bytes that can be obtained from a character array.
+        /// <summary>
+        /// Calculates the number of bytes that can be obtained by encoding the specified character array segment.
+        /// This method can be overridden by derived classes to customize encoding logic.
+        /// </summary>
+        /// <param name="bytes">The byte array into which the encoded data will be written.</param>
+        /// <param name="byteIndex">The starting index in the byte array.</param>
+        /// <param name="byteCount">The number of bytes to write.</param>
+        /// <param name="chars">The character array containing the characters to encode.</param>
+        /// <param name="charIndex">The starting index in the character array.</param>
+        /// <returns>The estimated number of bytes resulting from encoding the character data.</returns>
         protected virtual int GetByteCount(byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex)
         {
             ValidateInput(bytes, byteIndex, byteCount);
@@ -123,7 +190,7 @@ namespace System.Text
             return byteCount;
         }
 
-        // Validates input array and parameters.
+        // Validates the input array and index/count parameters. Throws appropriate exceptions if arguments are invalid.
         protected internal static void ValidateInput<T>(T[] input, int index, int count)
         {
             ArgumentNullException.ThrowIfNull(input);
@@ -132,7 +199,7 @@ namespace System.Text
             ArgumentOutOfRangeException.ThrowIfGreaterThan(index + count, input.Length, "index + count");
         }
 
-        // Validates output buffer index.
+        // Validates the output buffer and index. Throws appropriate exceptions if arguments are invalid.
         protected internal static void ValidateOutput<T>(T[] buffer, int index)
         {
             ArgumentNullException.ThrowIfNull(buffer);
@@ -152,7 +219,7 @@ namespace System.Text
             return array.Length - startIndex;
         }
 
-        // Throws an exception if decoding input data contains an invalid symbol.
+        // Returns an exception if decoding input data contains an invalid symbol.
         protected internal static Exception BadBaseException(char digit)
         {
             return new FormatException($"Invalid digit {digit} for the specified base.");
