@@ -1,4 +1,4 @@
-﻿/***************************************************************
+/***************************************************************************************
 
 •   File: Test.cs
 
@@ -9,34 +9,28 @@
 
 •   MIT License
 
-    Copyright © Pavel Bashkardin, 2024
+Copyright © Pavel Bashkardin, 2024
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
+Permission  is  hereby  granted,  free  of  charge,  to  any  person  obtaining  a  copy
+of  this  software  and  associated  documentation  files  (the  "Software"),  to  deal
+in  the  Software  without  restriction,  including  without  limitation  the  rights to
+use,  copy,  modify,  merge,  publish,  distribute,  sublicense,  and/or  sell copies of
+the  Software,  and  to  permit  persons  to  whom  the  Software  is  furnished  to  do
+so, subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
+The  above  copyright  notice  and  this  permission  notice  shall  be  included in all
+copies or substantial portions of the Software.
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
+THE  SOFTWARE  IS  PROVIDED  "AS  IS",  WITHOUT  WARRANTY  OF  ANY  KIND,  EXPRESS   OR
+IMPLIED,  INCLUDING  BUT  NOT  LIMITED  TO  THE  WARRANTIES  OF  MERCHANTABILITY, FITNESS
+FOR  A  PARTICULAR  PURPOSE  AND  NONINFRINGEMENT.  IN  NO  EVENT  SHALL  THE  AUTHORS OR
+COPYRIGHT  HOLDERS  BE  LIABLE  FOR  ANY  CLAIM,  DAMAGES  OR  OTHER  LIABILITY,  WHETHER
+IN  AN  ACTION  OF  CONTRACT,  TORT  OR  OTHERWISE,  ARISING  FROM,  OUT  OF  OR   IN
+CONNECTION  WITH  THE  SOFTWARE  OR  THE  USE  OR  OTHER  DEALINGS  IN  THE  SOFTWARE.
 
+****************************************************************************************/
 
-***************************************************************/
-
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
 
 namespace System.Text
 {
@@ -220,7 +214,7 @@ namespace System.Text
 
         private void TestRandomDataRoundTrip()
         {
-            var sizes = new[] { 0, 1, 2, 3, 4, 5, 10, 50, 100, 500, 1024, 2048, 65535 };
+            var sizes = new[] { 0, 1, 2, 3, 4, 5, 10, 50, 100, 500, 1001, 1024, 2048, 65535 };
             var styles = Enum.GetValues(typeof(BaseEncodingStyle)).Cast<BaseEncodingStyle>();
 
             foreach (var size in sizes)
@@ -266,7 +260,7 @@ namespace System.Text
                 ("Base2", "01"),
                 ("Base8", "01234567"),
                 ("Base10", "0123456789"),
-                ("Base16", "0123456789ABCDEF"),
+                ("Base16", "0123456789ABCDEF"), 
                 ("Base32", "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"),
                 ("Base64", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"),
                 ("Base62", "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"),
@@ -274,7 +268,7 @@ namespace System.Text
                 ("Japanese", "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん")
             };
 
-            var sizes = new[] { 0, 1, 2, 3, 10, 100, 1024 };
+            var sizes = new[] { 0, 1, 2, 3, 10, 100, 500, 1001, 1024, 2048 };
 
             foreach (var (name, alphabet) in alphabets)
             {
