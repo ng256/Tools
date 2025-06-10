@@ -1,4 +1,4 @@
-﻿/***************************************************************************************
+/***************************************************************************************
 
 • File: CustomEncoding.cs
 
@@ -105,7 +105,7 @@ namespace System.Text
         private static bool HasDuplicateChars(char[] chars)
         {
             // Handle small arrays.
-            if (chars == null || chars.Length <= 1)
+            if (chars == null || chars.Length < 2)
                 return false;
 
             if (chars.Length <= 16)
@@ -128,11 +128,11 @@ namespace System.Text
             // Bit masks for fast ASCII duplicate checking.
             ulong lowBits = 0;   // Characters 0-63.
             ulong highBits = 0;  // Characters 64-127.
-            HashSet<char>? nonAsciiSet = null;  // Lazy initialization for non-ASCII.
+            HashSet<char>? unicodeSet = null;  // Lazy initialization for non-ASCII.
 
             foreach (char c in chars)
             {
-                // ASCII character processing.
+                // Process ASCII range.
                 if (c < 0x80)
                 {
                     if (c < 0x40)
@@ -148,11 +148,11 @@ namespace System.Text
                         highBits |= mask;
                     }
                 }
-                // Non-ASCII character processing.
+                // Process Unicode range.
                 else
                 {
-                    nonAsciiSet ??= new HashSet<char>(chars.Length);
-                    if (!nonAsciiSet.Add(c)) return true;  // Duplicate found.
+                    unicodeSet ??= new HashSet<char>(chars.Length);
+                    if (!unicodeSet.Add(c)) return true;  // Duplicate found.
                 }
             }
 
