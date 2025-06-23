@@ -28,8 +28,11 @@ DEALINGS IN THE SOFTWARE.
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <sys/file.h>
 
-#define DATA_DIR "./data/"
+#define DATA_DIR "/tmp/storagecgi"
+#define LOCK_FILE "/tmp/storagecgi/.lock"
+
 #define MAX_KEY 256
 #define MAX_VAL 8192
 #define MAX_PATH 512
@@ -101,11 +104,40 @@ void send_header() {
     printf("\r\n");
 }
 
+// Function to set a lock
+int acquire_lock(int lock_type) {
+    int lock_fd = open(LOCK_FILE, O_RDWR | O_CREAT, 0600);
+    if (lock_fd == -1) {
+        return -1;
+    }
+
+    if (flock(lock_fd, lock_type) != 0) {
+        close(lock_fd);
+        return -1;
+    }
+    return lock_fd;
+}
+
+// Function to release a lock
+void release_lock(int lock_fd) {
+    if (lock_fd != -1) {
+        flock(lock_fd, LOCK_UN);
+        close(lock_fd);
+    }
+}
+
 // Handle GET requests
 void handle_get() {
+    int lock_fd = acquire_lock(LOCK_SH);
+    if (lock_fd == -1) {
+        printf("Lock error\n");
+        return;
+    }
+
     char *query = getenv("QUERY_STRING");
     if (!query || strlen(query) == 0) {
         printf("No key provided\n");
+        release_lock(lock_fd);
         return;
     }
 
@@ -113,6 +145,7 @@ void handle_get() {
     char *key_start = strstr(query, "key=");
     if (!key_start) {
         printf("Missing key parameter\n");
+        release_lock(lock_fd);
         return;
     }
     key_start += 4;
@@ -121,6 +154,7 @@ void handle_get() {
     size_t key_len = key_end ? (size_t)(key_end - key_start) : strlen(key_start);
     if (key_len >= MAX_KEY) {
         printf("Key too long\n");
+        release_lock(lock_fd);
         return;
     }
 
@@ -130,6 +164,7 @@ void handle_get() {
     url_decode(key_enc, key, sizeof(key));
     if (!is_valid_key(key)) {
         printf("Invalid key format\n");
+        release_lock(lock_fd);
         return;
     }
 
@@ -139,6 +174,7 @@ void handle_get() {
     FILE *f = fopen(path, "r");
     if (!f) {
         printf("Not found\n");
+        release_lock(lock_fd);
         return;
     }
 
@@ -154,31 +190,42 @@ void handle_get() {
     }
 
     printf("%s\n", value);
+    release_lock(lock_fd);
 }
 
 // Handle POST requests
 void handle_post() {
+    int lock_fd = acquire_lock(LOCK_EX);
+    if (lock_fd == -1) {
+        printf("Lock error\n");
+        return;
+    }
+
     char *len_str = getenv("CONTENT_LENGTH");
     if (!len_str) {
         printf("Missing CONTENT_LENGTH\n");
+        release_lock(lock_fd);
         return;
     }
 
     long len = strtol(len_str, NULL, 10);
     if (len <= 0 || len > MAX_KEY + MAX_VAL + 64) {
         printf("Invalid content length\n");
+        release_lock(lock_fd);
         return;
     }
 
     char *data = malloc(len + 1);
     if (!data) {
         printf("Memory allocation failed\n");
+        release_lock(lock_fd);
         return;
     }
 
     if (fread(data, 1, len, stdin) != (size_t)len) {
         printf("Read error\n");
         free(data);
+        release_lock(lock_fd);
         return;
     }
     data[len] = '\0';
@@ -188,6 +235,7 @@ void handle_post() {
     if (!key_start || !val_start) {
         printf("Missing parameters\n");
         free(data);
+        release_lock(lock_fd);
         return;
     }
     key_start += 4;
@@ -198,6 +246,7 @@ void handle_post() {
     if (key_len >= MAX_KEY) {
         printf("Key too long\n");
         free(data);
+        release_lock(lock_fd);
         return;
     }
 
@@ -215,6 +264,7 @@ void handle_post() {
     if (!is_valid_key(key)) {
         printf("Invalid key format\n");
         free(data);
+        release_lock(lock_fd);
         return;
     }
 
@@ -228,6 +278,7 @@ void handle_post() {
     if (fd == -1) {
         printf("File creation failed\n");
         free(data);
+        release_lock(lock_fd);
         return;
     }
 
@@ -237,6 +288,7 @@ void handle_post() {
         unlink(tmp_path);
         printf("File open failed\n");
         free(data);
+        release_lock(lock_fd);
         return;
     }
 
@@ -245,6 +297,7 @@ void handle_post() {
         unlink(tmp_path);
         printf("Write error\n");
         free(data);
+        release_lock(lock_fd);
         return;
     }
     fclose(f);
@@ -253,11 +306,13 @@ void handle_post() {
         unlink(tmp_path);
         printf("File rename failed\n");
         free(data);
+        release_lock(lock_fd);
         return;
     }
 
     printf("OK\n");
     free(data);
+    release_lock(lock_fd);
 }
 
 int main() {
