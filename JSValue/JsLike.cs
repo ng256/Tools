@@ -108,6 +108,14 @@ public class JsUndefined : JsLikeObject
     /// Returns the string representation of undefined.
     /// </summary>
     public override string ToString() => "undefined";
+
+    /// <summary>
+    /// Returns the JSON string representation of undefined.
+    /// </summary>
+    /// <param name="prettyPrint">Whether to format the output with indentation (ignored for undefined).</param>
+    /// <param name="indentLevel">The current indentation level (ignored for undefined).</param>
+    /// <returns>"undefined"</returns>
+    public string ToJsonString(bool prettyPrint = false, int indentLevel = 0) => "undefined";
 }
 
 /// <summary>
@@ -149,7 +157,10 @@ public class JsNumber : JsLikeObject
     /// <summary>
     /// Returns the JSON string representation of the number.
     /// </summary>
-    public string ToJsonString()
+    /// <param name="prettyPrint">Whether to format the output with indentation (ignored for numbers).</param>
+    /// <param name="indentLevel">The current indentation level (ignored for numbers).</param>
+    /// <returns>String representation of the number or "NaN"</returns>
+    public string ToJsonString(bool prettyPrint = false, int indentLevel = 0)
     {
         return double.IsNaN(Value) ? "NaN" : Value.ToString(CultureInfo.InvariantCulture);
     }
@@ -194,7 +205,10 @@ public class JsString : JsLikeObject
     /// <summary>
     /// Returns the JSON string representation.
     /// </summary>
-    public string ToJsonString()
+    /// <param name="prettyPrint">Whether to format the output with indentation (ignored for strings).</param>
+    /// <param name="indentLevel">The current indentation level (ignored for strings).</param>
+    /// <returns>JSON-escaped string representation</returns>
+    public string ToJsonString(bool prettyPrint = false, int indentLevel = 0)
     {
         return $"\"{EscapeJsonString(Value)}\"";
     }
@@ -250,7 +264,10 @@ public class JsBool : JsLikeObject
     /// <summary>
     /// Returns the JSON string representation of the boolean.
     /// </summary>
-    public string ToJsonString()
+    /// <param name="prettyPrint">Whether to format the output with indentation (ignored for booleans).</param>
+    /// <param name="indentLevel">The current indentation level (ignored for booleans).</param>
+    /// <returns>"true" or "false"</returns>
+    public string ToJsonString(bool prettyPrint = false, int indentLevel = 0)
     {
         return Value ? "true" : "false";
     }
@@ -311,15 +328,36 @@ public class JsArray : JsLikeObject
     /// <summary>
     /// Returns the JSON string representation of the array.
     /// </summary>
-    public string ToJsonString()
+    /// <param name="prettyPrint">Whether to format the output with indentation.</param>
+    /// <param name="indentLevel">The current indentation level.</param>
+    /// <returns>JSON array representation</returns>
+    public string ToJsonString(bool prettyPrint = false, int indentLevel = 0)
     {
+        if (values.Count == 0) return "[]";
+
+        var indent = prettyPrint ? new string(' ', indentLevel * 2) : "";
+        var childIndent = prettyPrint ? new string(' ', (indentLevel + 1) * 2) : "";
+        var newLine = prettyPrint ? "\n" : "";
+
         StringBuilder sb = new StringBuilder("[");
+        sb.Append(newLine);
+
         for (int i = 0; i < values.Count; i++)
         {
-            if (i > 0) sb.Append(",");
-            sb.Append(values[i].ToJsonString());
+            if (i > 0)
+            {
+                sb.Append(",");
+                sb.Append(newLine);
+            }
+            
+            if (prettyPrint) sb.Append(childIndent);
+            sb.Append(values[i].ToJsonString(prettyPrint, indentLevel + 1));
         }
+
+        sb.Append(newLine);
+        if (prettyPrint) sb.Append(indent);
         sb.Append("]");
+
         return sb.ToString();
     }
 
@@ -368,17 +406,39 @@ public class JsObject : JsLikeObject
     /// <summary>
     /// Returns the JSON string representation of the object.
     /// </summary>
-    public string ToJsonString()
+    /// <param name="prettyPrint">Whether to format the output with indentation.</param>
+    /// <param name="indentLevel">The current indentation level.</param>
+    /// <returns>JSON object representation</returns>
+    public string ToJsonString(bool prettyPrint = false, int indentLevel = 0)
     {
+        if (props.Count == 0) return "{}";
+
+        var indent = prettyPrint ? new string(' ', indentLevel * 2) : "";
+        var childIndent = prettyPrint ? new string(' ', (indentLevel + 1) * 2) : "";
+        var newLine = prettyPrint ? "\n" : "";
+
         StringBuilder sb = new StringBuilder("{");
+        sb.Append(newLine);
+
         bool first = true;
         foreach (var kvp in props)
         {
-            if (!first) sb.Append(",");
-            sb.Append($"\"{EscapeJsonString(kvp.Key)}\":{kvp.Value.ToJsonString()}");
+            if (!first)
+            {
+                sb.Append(",");
+                sb.Append(newLine);
+            }
+            
+            if (prettyPrint) sb.Append(childIndent);
+            sb.Append($"\"{EscapeJsonString(kvp.Key)}\": ");
+            sb.Append(kvp.Value.ToJsonString(prettyPrint, indentLevel + 1));
             first = false;
         }
+
+        sb.Append(newLine);
+        if (prettyPrint) sb.Append(indent);
         sb.Append("}");
+
         return sb.ToString();
     }
 
@@ -475,15 +535,18 @@ public class JsValue : JsLikeObject, IConvertible
     /// <summary>
     /// Returns the JSON string representation of the value.
     /// </summary>
-    public string ToJsonString()
+    /// <param name="prettyPrint">Whether to format the output with indentation.</param>
+    /// <param name="indentLevel">The current indentation level.</param>
+    /// <returns>JSON representation of the value</returns>
+    public string ToJsonString(bool prettyPrint = false, int indentLevel = 0)
     {
         if (inner == null) return "null";
         if (inner is JsUndefined) return "undefined";
-        if (inner is JsNumber n) return double.IsNaN(n.Value) ? "NaN" : n.Value.ToString(CultureInfo.InvariantCulture);
-        if (inner is JsBool b) return b.Value ? "true" : "false";
-        if (inner is JsString s) return $"\"{EscapeJsonString(s.Value)}\"";
-        if (inner is JsArray a) return a.ToJsonString();
-        if (inner is JsObject o) return o.ToJsonString();
+        if (inner is JsNumber n) return n.ToJsonString(prettyPrint, indentLevel);
+        if (inner is JsBool b) return b.ToJsonString(prettyPrint, indentLevel);
+        if (inner is JsString s) return s.ToJsonString(prettyPrint, indentLevel);
+        if (inner is JsArray a) return a.ToJsonString(prettyPrint, indentLevel);
+        if (inner is JsObject o) return o.ToJsonString(prettyPrint, indentLevel);
         return inner.ToString();
     }
 
@@ -695,6 +758,8 @@ class Program
         var arr = JsValue.FromArray(1, "two", true);
         Console.WriteLine("Array JS: " + arr.ToJsString());    // "1,two,true"
         Console.WriteLine("Array JSON: " + arr.ToJsonString()); // "[1,\"two\",true]"
+        Console.WriteLine("Array Pretty JSON: " + arr.ToJsonString(true)); // Formatted JSON
+        
         var objDict = new Dictionary<string, JsValue>
         {
             ["name"] = "John",
@@ -704,6 +769,8 @@ class Program
         var obj = JsValue.FromObject(objDict);
         Console.WriteLine("Object JS: " + obj.ToJsString());    // "[object Object]"
         Console.WriteLine("Object JSON: " + obj.ToJsonString()); // "{"name":"John","age":30,"isStudent":false}"
+        Console.WriteLine("Object Pretty JSON: " + obj.ToJsonString(true)); // Formatted JSON
+        
         // Test truthy/falsy in conditions
         if (num) Console.WriteLine("Number is truthy");
         if (str) Console.WriteLine("String is truthy");
