@@ -7,7 +7,7 @@
 /// - Undo (Ctrl+Z) / Redo (Ctrl+Y)
 /// - History of entered blocks (added on finish) and retrieval by Up/Down when at document top/bottom
 /// - Finishing input by Ctrl+C (CancelKeyPress handled; original handlers are temporarily detached and restored)
-/// Designed for compatibility with older .NET (avoid LINQ, use basic constructs).
+
 
 using System;
 using System.Collections.Generic;
@@ -15,7 +15,7 @@ using System.Text;
 using System.Reflection;
 
 /// <summary>
-/// Represent multi-line console editor.
+/// Multi-line console editor
 /// </summary>
 public static class ConsoleEditor
 {
@@ -100,7 +100,7 @@ public static class ConsoleEditor
         CancelHandlersReflectionHelper.CancelHandlersSnapshot savedSnapshot = null;
 
         // helper to push current snapshot to undo stack
-        Action pushUndo = delegate()
+        Action pushUndo = delegate ()
         {
             try
             {
@@ -119,7 +119,7 @@ public static class ConsoleEditor
         };
 
         // Attach our CancelKeyPress handler and detach others (via reflection)
-        ourHandler = new ConsoleCancelEventHandler(delegate(object sender, ConsoleCancelEventArgs e)
+        ourHandler = new ConsoleCancelEventHandler(delegate (object sender, ConsoleCancelEventArgs e)
         {
             // Cancel termination and signal finish
             e.Cancel = true;
@@ -625,14 +625,6 @@ public static class ConsoleEditor
             return src.IndexOf(pattern, start, StringComparison.Ordinal);
         }
 
-        // clone lines list
-        List<string> CloneLines(List<string> src)
-        {
-            List<string> dst = new List<string>(src.Count);
-            for (int i = 0; i < src.Count; i++) dst.Add(src[i] ?? string.Empty);
-            return dst;
-        }
-
         // compute final cursor placement after editor (one empty line)
         void MoveCursorAfterEditor()
         {
@@ -739,7 +731,6 @@ public static class ConsoleEditor
         // save render
         prevRender = segs;
 
-        // draw insert/overwrite indicator at end of status area? (not implemented)
         // Position cursor
         int cursorLeft, cursorTop;
         GetCursorVisualPosition(lines, curLine, curCol, startLeft, startTop, windowWidth, out cursorLeft, out cursorTop);
@@ -786,14 +777,14 @@ public static class ConsoleEditor
         {
             string s = lines[i] ?? string.Empty;
             if (s.Length == 0) { visualRow += 1; continue; }
-            int pos = 0;
+            int posInLoop = 0;
             int segIndex = 0;
-            while (pos < s.Length)
+            while (posInLoop < s.Length)
             {
                 int width = (segIndex == 0 ? firstWidth : windowWidth);
                 if (width <= 0) width = windowWidth;
-                int take = Math.Min(width, s.Length - pos);
-                pos += take;
+                int take = Math.Min(width, s.Length - posInLoop);
+                posInLoop += take;
                 segIndex++;
             }
             visualRow += segIndex;
@@ -828,29 +819,29 @@ public static class ConsoleEditor
         {
             // place at end of last segment
             int totalSegments = 0;
-            pos = 0;
+            int tempPos = 0;
             segIdxInLine = 0;
-            while (pos < curLineStr.Length)
+            while (tempPos < curLineStr.Length)
             {
                 totalSegments++;
                 int width = (segIdxInLine == 0 ? firstWidth : windowWidth);
                 if (width <= 0) width = windowWidth;
-                int take = Math.Min(width, curLineStr.Length - pos);
-                pos += take;
-                if (pos < curLineStr.Length) segIdxInLine++;
+                int take = Math.Min(width, curLineStr.Length - tempPos);
+                tempPos += take;
+                if (tempPos < curLineStr.Length) segIdxInLine++;
                 else break;
             }
-            pos = 0;
+            tempPos = 0;
             int idx = 0;
             while (idx < segIdxInLine)
             {
                 int width = (idx == 0 ? firstWidth : windowWidth);
                 if (width <= 0) width = windowWidth;
-                int take = Math.Min(width, curLineStr.Length - pos);
-                pos += take;
+                int take = Math.Min(width, curLineStr.Length - tempPos);
+                tempPos += take;
                 idx++;
             }
-            posInLine = pos;
+            posInLine = tempPos;
         }
 
         int offsetInSegment = curCol - posInLine;
@@ -862,12 +853,6 @@ public static class ConsoleEditor
             outLeft -= windowWidth;
             outTop += 1;
         }
-    }
-
-    // Build visual map public wrapper
-    private static List<VisualSegment> BuildVisualMap(List<string> lines, int startLeft, int windowWidth)
-    {
-        return BuildVisualMap(lines, startLeft, windowWidth); // overloaded - but resolves to same
     }
 
     // Join lines to single string
