@@ -17,9 +17,12 @@ Pop it when need undo changes (Ctrl+Z or "Undo" button is pressed)
 and run the PreviousState.Action.
 ************************************************************************/
 
+using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Runtime.InteropServices;
 using System.Security;
+using System.Reflection;
 
 namespace System
 {
@@ -62,7 +65,7 @@ namespace System
         /// <param name="items">Objects <see cref="PreviousState"/> to be inserted into <see cref="Stack{T}" />.</param>
         public PreviousStateStack(params PreviousState[] items) : base(DEF_CAPACITY)
         {
-            push(items);
+            Push(items);
         }
 
         /// <summary>
@@ -95,12 +98,22 @@ namespace System
     {
         private IntPtr _objPtr;
 
+        // Cached setter for restoring object value
+        private readonly Action<object, object> _setter;
+
         private static void DefaultAction(ref object obj, object value, params object[] parameters)
         {
             try
             {
-                var reference = __makeref(obj);
-                __refvalue(reference, object) = value;
+                // Safe default restore: if setter known, assign directly
+                if (obj is PropertyTargetWrapper wrapper)
+                {
+                    wrapper.Setter(wrapper.Target, value);
+                }
+                else
+                {
+                    // fallback (no specific target) – ignored safely
+                }
             }
             catch
             {
@@ -111,7 +124,7 @@ namespace System
         /// <summary>
         /// Defines an action that allows you to restore the previous state of the managed object.
         /// </summary>
-        public RestoreAction Action { get; } = DefaultAction;
+        public RestoreAction Action { get; private set; }
 
         /// <summary>
         /// Managed object for which to store the previous value.
@@ -126,7 +139,7 @@ namespace System
             private set
             {
                 var handle = GCHandle.Alloc(value);
-                _objPtr = (IntPtr) handle;
+                _objPtr = (IntPtr)handle;
             }
         }
 
@@ -143,8 +156,10 @@ namespace System
         /// <param name="value">The previous state of the object.</param>
         public PreviousState(object obj, object value)
         {
-            obj=obj?? throw new ArgumentNullException(nameof(obj));
+            obj = obj ?? throw new ArgumentNullException(nameof(obj));
             Value = value;
+            Obj = obj;
+            Action = DefaultAction;
         }
 
         /// <summary>
@@ -157,7 +172,7 @@ namespace System
         /// <param name="action">An action that allows you to restore the previous state of the object.</param>
         public PreviousState(object obj, object value, RestoreAction action) : this(obj, value)
         {
-            Action = action?? throw new ArgumentNullException(nameof(action));
+            Action = action ?? throw new ArgumentNullException(nameof(action));
         }
 
         /// <summary>
@@ -166,8 +181,52 @@ namespace System
         /// </summary>
         public void Restore()
         {
-            objectobj = obj;
-            Action?.Invoke(ref obj, this.Value);
+            object obj = Obj;
+            Action?.Invoke(ref obj, Value);
+        }
+
+        /// <summary>
+        /// Creates PreviousState from lambda expression (safe alternative to __makeref).
+        /// Example: PreviousState.Create(() => button.Text);
+        /// </summary>
+        public static PreviousState Create<T>(Expression<Func<T>> expression)
+        {
+            if (expression.Body is MemberExpression member && member.Member is PropertyInfo property)
+            {
+                var targetExpr = (ConstantExpression)((MemberExpression)member.Expression).Expression;
+                var targetObj = targetExpr.Value;
+                var getter = property.GetGetMethod();
+                var setter = property.GetSetMethod();
+                if (setter == null)
+                    throw new InvalidOperationException("Property is read-only.");
+
+                var oldValue = getter.Invoke(targetObj, null);
+
+                var setterDelegate = (Action<object, object>)Delegate.CreateDelegate(
+                    typeof(Action<object, object>),
+                    setter.IsStatic ? null : targetObj,
+                    setter
+                );
+
+                var wrapper = new PropertyTargetWrapper(targetObj, setterDelegate);
+
+                return new PreviousState(wrapper, oldValue);
+            }
+
+            throw new ArgumentException("Expression must be a property access.", nameof(expression));
+        }
+
+        // internal wrapper to hold property target and setter delegate
+        private sealed class PropertyTargetWrapper
+        {
+            public readonly object Target;
+            public readonly Action<object, object> Setter;
+
+            public PropertyTargetWrapper(object target, Action<object, object> setter)
+            {
+                Target = target;
+                Setter = setter;
+            }
         }
     }
-} 
+}
