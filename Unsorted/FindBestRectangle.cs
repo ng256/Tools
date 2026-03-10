@@ -1,19 +1,15 @@
-private static bool FindBestRectangle(int square, out int rows, out int columns)
+private static int FindBestRectangle(int square)
 {
-    // Initialize output parameters
-    rows = 0;
-    columns = 0;
-
     // Bitmask for checking primality of numbers 0-63
     const ulong primeMask = 0x22280088AA005604UL;
 
-    // Check range and primality of the number
+    // Check valid range and that the number is not prime
     if (square < 4 || square > 64 || (primeMask & (1UL << square)) != 0)
     {
-        return false;
+        return -1;
     }
 
-    // Calculate ceil(sqrt(square)) using bit manipulation
+    // Compute ceil(sqrt(square)) using bit manipulation
     int limit = 0;
     int bit = 1 << 6;
     while (bit > 0)
@@ -25,17 +21,14 @@ private static bool FindBestRectangle(int square, out int rows, out int columns)
     }
     if (limit * limit < square) limit++;
 
-    // Find the optimal divisor
+    // Find divisor that yields sides closest to a square
     for (int i = limit; i >= 2; i--)
     {
         if (square % i == 0)
         {
-            // Ensure rows >= columns
             int j = square / i;
-            rows = Math.Max(i, j);
-            columns = Math.Min(i, j);
-            break;
+            return Math.Max(i, j);   // larger side
         }
     }
-    return true;
+    return -1;   // should not be reached if number is composite
 }
