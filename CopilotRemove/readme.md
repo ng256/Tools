@@ -46,8 +46,6 @@ Registry tweaks: Uses RegCreateKeyExA and RegSetValueExA to write DWORD values.
 
 Package removal: Spawns hidden PowerShell processes with CreateProcessA to run Remove-AppxPackage and Remove-AppxProvisionedPackage.
 
-Input handling: Temporarily changes the console mode to read a single character without waiting for Enter.
-
 ## Disclaimer
 This utility modifies system settings and removes built‑in Windows components. Use it at your own risk. It is recommended to create a system restore point before running. The author is not responsible for any damage or data loss.
 
