@@ -29,16 +29,10 @@
  *              Includes runtime removal of white background from tray icon.
  */
 
-#include <windows.h>
-#include <shellapi.h>
-#include "resource.h"
+#include "keyblock.h"
+#include "resource.h"   // for icon IDs (IDI_ICON16, IDI_ICON32)
 
 #pragma comment(linker, "/SUBSYSTEM:WINDOWS")
-
-#define MUTEX_NAME          "KeyboardBlockerMutex"
-#define EVENT_NAME          "KeyboardBlockerStopEvent"
-#define WM_TRAYICON         (WM_APP + 1)
-#define WM_STOP_BLOCKING    (WM_APP + 2)
 
 // Global variables
 HINSTANCE       g_hInst;
@@ -48,18 +42,6 @@ HANDLE          g_hWatchThread = NULL;
 HHOOK           g_hHook = NULL;
 HWND            g_hwnd = NULL;
 NOTIFYICONDATA  g_nid = {0};
-
-// Forward declarations
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
-DWORD WINAPI     WatchThreadProc(LPVOID lpParam);
-void             AddTrayIcon(HWND hwnd);
-void             RemoveTrayIcon();
-void             ShowTrayMenu(HWND hwnd);
-void             ShowBalloonMessage(HWND hwnd, const char* title, const char* text, DWORD infoFlags);
-void             ShowBalloonBlocked(HWND hwnd);
-void             ShowBalloonUnblocked(HWND hwnd);
-HICON            RemoveWhiteBackground(HICON hIcon);
 
 //-------------------------------------------------------------------
 // Entry point
@@ -72,7 +54,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     if (g_hMutex == NULL)
         return 1;
 
-    if (GetLastError() == ERROR_ALREADY_EXISTS)
+	
+    // ========== SECOND INSTANCE ==========
+	if (GetLastError() == ERROR_ALREADY_EXISTS)
     {
         // Signal the first one to stop
         HANDLE hEvent = OpenEventA(EVENT_MODIFY_STATE, FALSE, EVENT_NAME);
@@ -326,7 +310,8 @@ void ShowTrayMenu(HWND hwnd)
 }
 
 //-------------------------------------------------------------------
-// Remove white background from a 32-bit icon
+// Remove white background from a 32-bit icon using a heuristic that
+// only removes white pixels connected to the image border.
 // Returns a new icon if successful, otherwise NULL.
 //-------------------------------------------------------------------
 HICON RemoveWhiteBackground(HICON hIcon)
@@ -357,7 +342,6 @@ HICON RemoveWhiteBackground(HICON hIcon)
         return NULL;
     }
 
-    // Create a device context and a new bitmap to work with
     HDC hdcScreen = GetDC(NULL);
     HDC hdcMem = CreateCompatibleDC(hdcScreen);
     HBITMAP hbmNew = CreateCompatibleBitmap(hdcScreen, bmp.bmWidth, bmp.bmHeight);
@@ -375,8 +359,9 @@ HICON RemoveWhiteBackground(HICON hIcon)
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
 
-    // Allocate memory for pixel data
-    DWORD* pixels = (DWORD*)malloc(bmp.bmWidth * bmp.bmHeight * 4);
+    // Allocate memory for pixel data (using HeapAlloc instead of malloc)
+    HANDLE hHeap = GetProcessHeap();
+    DWORD* pixels = (DWORD*)HeapAlloc(hHeap, 0, bmp.bmWidth * bmp.bmHeight * 4);
     if (!pixels)
     {
         SelectObject(hdcMem, hbmOld);
@@ -391,7 +376,7 @@ HICON RemoveWhiteBackground(HICON hIcon)
     // Get pixel bits
     if (!GetDIBits(hdcMem, hbmNew, 0, bmp.bmHeight, pixels, &bmi, DIB_RGB_COLORS))
     {
-        free(pixels);
+        HeapFree(hHeap, 0, pixels);
         SelectObject(hdcMem, hbmOld);
         DeleteDC(hdcMem);
         ReleaseDC(NULL, hdcScreen);
@@ -401,25 +386,136 @@ HICON RemoveWhiteBackground(HICON hIcon)
         return NULL;
     }
 
-    // Process each pixel: if it's nearly white, set alpha to 0
-    int count = bmp.bmWidth * bmp.bmHeight;
-    for (int i = 0; i < count; i++)
+    // -----------------------------------------------------------------
+    // Heuristic: mark white pixels connected to the image border.
+    // We'll use a simple BFS flood fill from border white pixels.
+    // -----------------------------------------------------------------
+    int width = bmp.bmWidth;
+    int height = bmp.bmHeight;
+    int totalPixels = width * height;
+
+    // Helper macro to test for "white" (all components > 240)
+    #define IS_WHITE(color) (GetRValue(color) > 240 && GetGValue(color) > 240 && GetBValue(color) > 240)
+
+    // Visited array (1 = background white pixel)
+    BYTE* visited = (BYTE*)HeapAlloc(hHeap, HEAP_ZERO_MEMORY, totalPixels);
+    if (!visited)
     {
-        DWORD color = pixels[i];
-        BYTE r = GetRValue(color);
-        BYTE g = GetGValue(color);
-        BYTE b = GetBValue(color);
-        // If all components are > 240 (close to white), make fully transparent
-        if (r > 240 && g > 240 && b > 240)
+        HeapFree(hHeap, 0, pixels);
+        SelectObject(hdcMem, hbmOld);
+        DeleteDC(hdcMem);
+        ReleaseDC(NULL, hdcScreen);
+        DeleteObject(hbmNew);
+        DeleteObject(iconInfo.hbmMask);
+        DeleteObject(iconInfo.hbmColor);
+        return NULL;
+    }
+
+    // Queue for BFS (store pixel indices)
+    int* queue = (int*)HeapAlloc(hHeap, 0, totalPixels * sizeof(int));
+    if (!queue)
+    {
+        HeapFree(hHeap, 0, visited);
+        HeapFree(hHeap, 0, pixels);
+        SelectObject(hdcMem, hbmOld);
+        DeleteDC(hdcMem);
+        ReleaseDC(NULL, hdcScreen);
+        DeleteObject(hbmNew);
+        DeleteObject(iconInfo.hbmMask);
+        DeleteObject(iconInfo.hbmColor);
+        return NULL;
+    }
+
+    int head = 0, tail = 0;
+
+    // Enqueue all border pixels that are white
+    // Top row (y = 0)
+    for (int x = 0; x < width; x++)
+    {
+        int idx = x;
+        if (!visited[idx] && IS_WHITE(pixels[idx]))
         {
-            pixels[i] &= 0x00FFFFFF; // set alpha to 0
+            visited[idx] = 1;
+            queue[tail++] = idx;
+        }
+    }
+    // Bottom row (y = height-1)
+    for (int x = 0; x < width; x++)
+    {
+        int idx = (height - 1) * width + x;
+        if (!visited[idx] && IS_WHITE(pixels[idx]))
+        {
+            visited[idx] = 1;
+            queue[tail++] = idx;
+        }
+    }
+    // Left column (x = 0), excluding corners already processed
+    for (int y = 1; y < height - 1; y++)
+    {
+        int idx = y * width;
+        if (!visited[idx] && IS_WHITE(pixels[idx]))
+        {
+            visited[idx] = 1;
+            queue[tail++] = idx;
+        }
+    }
+    // Right column (x = width-1), excluding corners already processed
+    for (int y = 1; y < height - 1; y++)
+    {
+        int idx = y * width + (width - 1);
+        if (!visited[idx] && IS_WHITE(pixels[idx]))
+        {
+            visited[idx] = 1;
+            queue[tail++] = idx;
         }
     }
 
-    // Write back the modified pixels
-    if (!SetDIBits(hdcMem, hbmNew, 0, bmp.bmHeight, pixels, &bmi, DIB_RGB_COLORS))
+    // BFS with 4‑connectivity
+    int dx[4] = { -1, 1, 0, 0 };
+    int dy[4] = { 0, 0, -1, 1 };
+
+    while (head < tail)
     {
-        free(pixels);
+        int idx = queue[head++];
+        int x = idx % width;
+        int y = idx / width;
+
+        for (int dir = 0; dir < 4; dir++)
+        {
+            int nx = x + dx[dir];
+            int ny = y + dy[dir];
+            if (nx >= 0 && nx < width && ny >= 0 && ny < height)
+            {
+                int nidx = ny * width + nx;
+                if (!visited[nidx] && IS_WHITE(pixels[nidx]))
+                {
+                    visited[nidx] = 1;
+                    queue[tail++] = nidx;
+                }
+            }
+        }
+    }
+
+    // Now set alpha to 0 for all visited (background) pixels
+    for (int i = 0; i < totalPixels; i++)
+    {
+        if (visited[i])
+        {
+            pixels[i] &= 0x00FFFFFF; // zero alpha
+        }
+    }
+
+    // Free temporary BFS structures
+    HeapFree(hHeap, 0, queue);
+    HeapFree(hHeap, 0, visited);
+
+    // Undefine helper macro (cleanup)
+    #undef IS_WHITE
+
+    // Write back the modified pixels
+    if (!SetDIBits(hdcMem, hbmNew, 0, height, pixels, &bmi, DIB_RGB_COLORS))
+    {
+        HeapFree(hHeap, 0, pixels);
         SelectObject(hdcMem, hbmOld);
         DeleteDC(hdcMem);
         ReleaseDC(NULL, hdcScreen);
@@ -429,14 +525,29 @@ HICON RemoveWhiteBackground(HICON hIcon)
         return NULL;
     }
 
-    free(pixels);
+    HeapFree(hHeap, 0, pixels);
 
-    // Create a new icon from the modified bitmap
+    // Create a new icon from the modified bitmap.
+    // For 32‑bit icons the mask should be a monochrome bitmap with all bits zero
+    // to allow the alpha channel to control transparency.
+    // We create a new mask (all black) and discard the original one.
+    HBITMAP hbmNewMask = CreateBitmap(width, height, 1, 1, NULL);
+    if (!hbmNewMask)
+    {
+        SelectObject(hdcMem, hbmOld);
+        DeleteDC(hdcMem);
+        ReleaseDC(NULL, hdcScreen);
+        DeleteObject(hbmNew);
+        DeleteObject(iconInfo.hbmMask);
+        DeleteObject(iconInfo.hbmColor);
+        return NULL;
+    }
+
     ICONINFO newInfo = {0};
     newInfo.fIcon = iconInfo.fIcon;
     newInfo.xHotspot = iconInfo.xHotspot;
     newInfo.yHotspot = iconInfo.yHotspot;
-    newInfo.hbmMask = iconInfo.hbmMask;      // reuse the mask (for 32-bit, mask is often ignored)
+    newInfo.hbmMask = hbmNewMask;      // new all‑black mask
     newInfo.hbmColor = hbmNew;
 
     HICON hNewIcon = CreateIconIndirect(&newInfo);
@@ -445,9 +556,10 @@ HICON RemoveWhiteBackground(HICON hIcon)
     SelectObject(hdcMem, hbmOld);
     DeleteDC(hdcMem);
     ReleaseDC(NULL, hdcScreen);
+    DeleteObject(hbmNew);
+    DeleteObject(hbmNewMask);
     DeleteObject(iconInfo.hbmMask);
     DeleteObject(iconInfo.hbmColor);
-    DeleteObject(hbmNew);
 
     return hNewIcon;
 }

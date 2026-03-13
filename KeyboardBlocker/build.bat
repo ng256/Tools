@@ -76,6 +76,13 @@ gcc -m32 -Os -s -static -static-libgcc -ffunction-sections -fdata-sections -mwin
 if errorlevel 1 goto error
 
 REM ------------------------------------------------------------
+REM Stripping
+REM ------------------------------------------------------------
+echo Stripping executable...
+strip %EXE_FILE%
+if errorlevel 1 goto error
+
+REM ------------------------------------------------------------
 REM Show imported DLLs
 REM ------------------------------------------------------------
 echo Checking dependencies (imported DLLs):
