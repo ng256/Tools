@@ -1,0 +1,55 @@
+#include <windows.h>
+#include "resource.h"
+
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "manifest.xml"
+
+IDD_MAIN DIALOGEX 0, 0, 400, 150
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CAPTION | WS_SYSMENU
+CAPTION "SFX Unzip"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "", IDC_STATIC, 10, 10, 120, 10
+    EDITTEXT        IDC_PATH, 10, 25, 300, 14, ES_AUTOHSCROLL | WS_BORDER
+    PUSHBUTTON      "Browse...", IDC_BROWSE, 320, 24, 70, 14
+    PUSHBUTTON      "Extract", IDC_EXTRACT, 160, 50, 80, 20
+    EDITTEXT        IDC_STATUS, 10, 80, 380, 60, ES_MULTILINE | ES_READONLY | WS_VSCROLL | WS_BORDER
+END
+
+IDD_LICENSE DIALOGEX 0, 0, 420, 320
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_CAPTION | WS_SYSMENU
+CAPTION "License Agreement"
+FONT 8, "MS Shell Dlg"
+BEGIN
+    LTEXT           "License Agreement", IDC_STATIC, 10, 10, 400, 10
+    EDITTEXT        IDC_LICENSE_TEXT, 10, 25, 400, 240, ES_MULTILINE | ES_READONLY | WS_VSCROLL | WS_BORDER
+    DEFPUSHBUTTON   "Accept", IDC_ACCEPT, 130, 280, 80, 20
+    PUSHBUTTON      "Decline", IDC_DECLINE, 220, 280, 80, 20
+END
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
+FILEFLAGSMASK   0x3fL
+FILEFLAGS       0x0L
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+FILESUBTYPE     0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "CompanyName",      "Pavel Bashkardin"
+            VALUE "FileDescription",  "SFX Unzip GUI"
+            VALUE "FileVersion",      "1.0.0.0"
+            VALUE "InternalName",     "sfx"
+            VALUE "OriginalFilename", "sfx.exe"
+            VALUE "ProductName",      "SFX Unzip"
+            VALUE "ProductVersion",   "1.0.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
